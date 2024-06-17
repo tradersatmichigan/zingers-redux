@@ -12,7 +12,7 @@ SRC_FILES = $(wildcard $(SRC_DIR)/*.cpp)
 EXECUTABLES = $(patsubst $(SRC_DIR)/%.cpp,%,$(SRC_FILES))
 
 
-all: $(EXECUTABLES)
+all: uSockets $(EXECUTABLES)
 
 uSockets:
 	$(MAKE) -C uWebSockets/uSockets
