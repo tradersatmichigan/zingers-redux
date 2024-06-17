@@ -26,3 +26,6 @@ I'd also recommend referencing
 [my clangd config](https://github.com/ConnerRose/dotfiles/blob/main/Library/Preferences/clangd/config.yaml)
 which sets a lot of other options I find useful, and that I will be using while
 leading the development of this project.
+
+> [!NOTE]  
+> You may have to run `sudo chmod 777 ./uWebSockets/uSockets` in order for make instructions to run correctly.
