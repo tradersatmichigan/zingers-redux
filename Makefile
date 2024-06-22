@@ -4,7 +4,7 @@ CXXFLAGS = -march=native -O3 -Wpedantic -Wall -Wextra -Wsign-conversion \
 					 -flto -fsanitize=address -g
 					 # -lssl -lcrypto
 IFLAGS = -I/usr/local/include/uWebSockets -I/usr/local/include/uSockets \
-				 -isystem /usr/local/include/glaze
+				 -I/usr/local/include/glaze
 LDFLAGS = uWebsockets/uSockets/*.o -lz
 
 SRC_DIR = src
