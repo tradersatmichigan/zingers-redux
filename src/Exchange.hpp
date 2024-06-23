@@ -56,18 +56,20 @@ struct Exchange {
   static inline std::unordered_map<int, Cash> user_cash;
   static inline std::mutex cash_mutex;
   std::unordered_map<int, AssetAmount> user_assets;
-  std::map<int, std::deque<Order>> buy_orders;
-  std::map<int, std::deque<Order>, std::greater<>> sell_orders;
+  std::map<int, std::deque<Order>, std::greater<>> buy_orders;
+  std::map<int, std::deque<Order>> sell_orders;
 
   Exchange(Asset asset) : asset(asset) {}
 
   [[nodiscard]] auto register_user(int user_id)
       -> std::optional<std::string_view> {
     std::scoped_lock lock(cash_mutex);
-    if (user_cash.contains(user_id) || user_assets.contains(user_id)) {
+    if (user_assets.contains(user_id)) {
       return "User already registered";
     }
-    user_cash[user_id] = {1'000'000, 1'000'000};
+    if (!user_cash.contains(user_id)) {
+      user_cash[user_id] = {1'000'000, 1'000'000};
+    }
     user_assets[user_id] = {100'000, 100'000};
     return {};
   }

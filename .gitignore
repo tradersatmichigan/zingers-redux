@@ -33,3 +33,5 @@
 *.dSYM
 
 uWebSockets/
+output.*
+old/
