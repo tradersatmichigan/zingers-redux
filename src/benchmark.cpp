@@ -49,7 +49,8 @@ auto benchmark(Exchange& exchange, const std::vector<int>& user_ids,
                size_t num_orders) -> void {
   auto t_start = std::chrono::high_resolution_clock::now();
   for (int user_id : user_ids) {
-    std::optional<std::string_view> err = exchange.register_user(user_id);
+    std::optional<std::string_view> err =
+        exchange.register_user(user_id, 1'000'000, 100'000);
     if (err.has_value()) {
       std::scoped_lock lock(output_mutex);
       std::cout << err.value() << std::endl;
@@ -88,7 +89,8 @@ auto benchmark(Exchange& exchange, const std::vector<int>& user_ids,
 auto benchmark_to_csv(Exchange& exchange, const std::vector<int>& user_ids,
                       size_t num_orders) -> void {
   for (int user_id : user_ids) {
-    std::optional<std::string_view> err = exchange.register_user(user_id);
+    std::optional<std::string_view> err =
+        exchange.register_user(user_id, 1'000'000, 100'000);
     if (err.has_value()) {
       std::scoped_lock lock(output_mutex);
       std::cout << err.value() << std::endl;
@@ -129,11 +131,11 @@ auto benchmark_to_csv(Exchange& exchange, const std::vector<int>& user_ids,
 }
 
 auto example(Exchange& exchange) -> void {
-  auto err = exchange.register_user(0);
+  auto err = exchange.register_user(0, 1000, 100);
   if (err.has_value()) {
     std::cout << err.value() << std::endl;
   }
-  err = exchange.register_user(1);
+  err = exchange.register_user(1, 1000, 100);
   if (err.has_value()) {
     std::cout << err.value() << std::endl;
   }
