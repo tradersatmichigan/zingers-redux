@@ -21,5 +21,4 @@ uSockets:
 	$(CXX) $(CXXFLAGS) $(IFLAGS) $< $(LDFLAGS) -o $@
 
 clean:
-	rm -rf ./uWebSockets/uSockets/*.o ./uWebSockets/uSockets/uSockets.a
 	rm -rf $(EXECUTABLES) $(wildcard *.dSYM)

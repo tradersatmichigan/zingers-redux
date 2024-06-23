@@ -26,16 +26,17 @@ struct Trade {
 };
 
 struct Order {
+  Side side;
   int user_id;
   int price;
   int volume;
 
-  Order(int user_id, int price, int volume)
-      : user_id(user_id), price(price), volume(volume){};
+  Order(Side side, int user_id, int price, int volume)
+      : side(side), user_id(user_id), price(price), volume(volume){};
 };
 
 struct OrderResult {
-  std::optional<std::string_view> error;
+  std::optional<std::string> error;
   std::optional<std::vector<Trade>> trades;
   std::optional<Order> unmatched_order;
 };
@@ -60,9 +61,20 @@ struct Exchange {
 
   Exchange(Asset asset) : asset(asset) {}
 
+  [[nodiscard]] auto register_user(int user_id)
+      -> std::optional<std::string_view> {
+    std::scoped_lock lock(cash_mutex);
+    if (user_cash.contains(user_id) || user_assets.contains(user_id)) {
+      return "User already registered";
+    }
+    user_cash[user_id] = {1'000'000, 1'000'000};
+    user_assets[user_id] = {100'000, 100'000};
+    return {};
+  }
+
   [[nodiscard]] auto validate_order(Side side, int user_id, int price,
                                     int volume) const
-      -> std::optional<std::string_view> {
+      -> std::optional<std::string> {
     if (!user_cash.contains(user_id)) {
       return "User with id " + std::to_string(user_id) + " not found.";
     }
@@ -82,27 +94,123 @@ struct Exchange {
         break;
     }
 
+    if (price <= 0) {
+      return "Price must be positive";
+    }
+
+    if (volume <= 0) {
+      return "Volume must be positive";
+    }
+
     return {};
   }
 
-  auto place_order(Side side, int user_id, int price,
-                   int volume) -> OrderResult {
-    /*std::optional<std::string_view> error =*/
-    /*    validate_order(side, user_id, price, volume);*/
-    /*if (error.has_value()) {*/
-    /*  return {error, {}, {}};*/
-    /*}*/
+  [[nodiscard]] auto execute_trade(Side taker_side, int maker_id, int taker_id,
+                                   int price, int volume) -> Trade {
+    std::scoped_lock lock(cash_mutex);
+
+    const int order_cost = price * volume;
+    switch (taker_side) {
+      case BUY:
+        user_cash[maker_id].amount_held += order_cost;
+        user_cash[maker_id].buying_power += order_cost;
+        user_cash[taker_id].amount_held -= order_cost;
+        user_cash[taker_id].buying_power -= order_cost;
+
+        user_assets[maker_id].amount_held -= volume;
+        /*user_assets[maker_id].selling_power -= volume;*/
+        user_assets[taker_id].amount_held += volume;
+        user_assets[taker_id].selling_power += volume;
+        break;
+      case SELL:
+        user_cash[maker_id].amount_held -= order_cost;
+        /*user_cash[maker_id].buying_power -= order_cost;*/
+        user_cash[taker_id].amount_held += order_cost;
+        user_cash[taker_id].buying_power += order_cost;
+
+        user_assets[maker_id].amount_held += volume;
+        user_assets[maker_id].selling_power += volume;
+        user_assets[taker_id].amount_held -= volume;
+        user_assets[taker_id].selling_power -= volume;
+        break;
+    }
+    return {taker_side == Side::BUY ? taker_id : maker_id,
+            taker_side == Side::BUY ? maker_id : taker_id, price, volume};
+  }
+
+  [[nodiscard]] auto match_order(Side side, int user_id, int price, int& volume)
+      -> std::optional<std::vector<Trade>> {
+    std::vector<Trade> trades;
+
+    const auto begin =
+        side == Side::BUY ? sell_orders.begin() : buy_orders.begin();
+    const auto end = side == Side::BUY ? sell_orders.upper_bound(price)
+                                       : buy_orders.upper_bound(price);
+
+    for (auto price_it = begin; price_it != end && volume > 0;) {
+      auto& level = price_it->second;
+
+      for (auto level_it = level.begin(); level_it != level.end() && volume > 0;
+           ++level_it) {
+        const int trade_volume = std::min(volume, level_it->volume);
+
+        volume -= trade_volume;
+        level_it->volume -= trade_volume;
+
+        trades.push_back(execute_trade(side, level_it->user_id, user_id,
+                                       level_it->price, trade_volume));
+
+        if (level_it->volume == 0) {
+          level.erase(level_it);
+        }
+      }
+
+      ++price_it;
+
+      if (level.empty()) {
+        switch (side) {
+          case BUY:
+            sell_orders.erase(std::prev(price_it));
+            break;
+          case SELL:
+            buy_orders.erase(std::prev(price_it));
+            break;
+        }
+      }
+    }
+
+    if (trades.empty()) {
+      return {};
+    }
+
+    return trades;
+  }
+
+  [[nodiscard]] auto place_order(Side side, int user_id, int price,
+                                 int volume) -> OrderResult {
+    std::optional<std::string> error =
+        validate_order(side, user_id, price, volume);
+    if (error.has_value()) {
+      return {std::move(error.value()), {}, {}};
+    }
+
+    std::optional<std::vector<Trade>> trades =
+        match_order(side, user_id, price, volume);
+
+    if (volume == 0) {
+      return {{}, trades, {}};
+    }
 
     switch (side) {
       case BUY:
-        buy_orders[price].emplace_back(user_id, price, volume);
+        buy_orders[price].emplace_back(side, user_id, price, volume);
         break;
       case SELL:
-        sell_orders[price].emplace_back(user_id, price, volume);
+        sell_orders[price].emplace_back(side, user_id, price, volume);
         break;
     }
 
-    return {{}, {}, Order{user_id, price, volume}};
+    return {{}, trades, Order{side, user_id, price, volume}};
   }
 };
 

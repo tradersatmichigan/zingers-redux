@@ -5,12 +5,10 @@
 #include <string>
 
 enum Asset : uint8_t {
-  // Maybe change to 0, 1, 2, 3
-  // Using 10, 20, 30, 40 so we can use static_cast<int>(asset) to get value
-  DRESSING = 10,
-  RYE = 20,
-  SWISS = 30,
-  PASTRAMI = 40,
+  DRESSING = 0,
+  RYE = 1,
+  SWISS = 2,
+  PASTRAMI = 3,
 };
 
 auto constexpr to_string(Asset asset) -> std::string {
