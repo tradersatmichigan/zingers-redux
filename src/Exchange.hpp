@@ -61,16 +61,16 @@ struct Exchange {
 
   Exchange(Asset asset) : asset(asset) {}
 
-  [[nodiscard]] auto register_user(int user_id, int cash, int asset)
+  [[nodiscard]] auto register_user(int user_id, int cash, int assets)
       -> std::optional<std::string_view> {
     std::scoped_lock lock(cash_mutex);
     if (user_assets.contains(user_id)) {
-      return "User already registered";
+      return "Error: User already registered on exchange" + to_string(asset);
     }
     if (!user_cash.contains(user_id)) {
       user_cash[user_id] = {cash, cash};
     }
-    user_assets[user_id] = {asset, asset};
+    user_assets[user_id] = {assets, assets};
     return {};
   }
 

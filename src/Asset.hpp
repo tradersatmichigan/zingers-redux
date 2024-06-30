@@ -24,4 +24,17 @@ auto constexpr to_string(Asset asset) -> std::string {
   }
 }
 
+auto constexpr to_string_lower(Asset asset) -> std::string {
+  switch (asset) {
+    case DRESSING:
+      return "dressing";
+    case RYE:
+      return "rye";
+    case SWISS:
+      return "swiss";
+    case PASTRAMI:
+      return "pastrami";
+  }
+}
+
 #endif  // ASSET_HPP
