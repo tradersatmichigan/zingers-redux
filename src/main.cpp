@@ -7,10 +7,12 @@
 #include "Asset.hpp"
 #include "Exchange.hpp"
 
+// See https://github.com/stephenberry/glaze?tab=readme-ov-file#explicit-metadata
 template <>
 struct glz::meta<Order> {
   using T = Order;
-  static constexpr auto value =  // NOLINT
+  // NOLINTNEXTLINE(readability-identifier-naming)
+  static constexpr auto value =
       object(&T::side, &T::user_id, &T::price, &T::volume);
 };
 
@@ -50,9 +52,12 @@ auto run_asset_socket(Asset asset, Exchange& exchange) {
 
     UserData* user_data = ws->getUserData();
 
+    OrderResult result{};
+
     if (message_data.reg.has_value() && message_data.reg.value()) {
       if (!message_data.user_id.has_value()) {
-        ws->send("Error: Must include user_id when registering.");
+        result.error = "Error: Must include user_id when registering.";
+        ws->send(glz::write_json(result).value_or("Error encoding JSON."));
         return;
       }
 
@@ -60,27 +65,25 @@ auto run_asset_socket(Asset asset, Exchange& exchange) {
           exchange.register_user(message_data.user_id.value(), 1000, 100);
 
       if (err.has_value()) {
-        ws->send(err.value());
+        result.error = err.value();
+        ws->send(glz::write_json(result).value_or("Error encoding JSON."));
         return;
       }
 
+      // TOOD: Probably want to remove this in production.
       ws->getUserData()->user_id = message_data.user_id.value();
       ws->send("Registered with user id: " +
-               std::to_string(message_data.user_id.value()));
+               std::to_string(message_data.user_id.value()) + ".");
       return;
     }
 
-    OrderResult result = exchange.place_order(
-        message_data.side.value(), user_data->user_id,
-        message_data.price.value(), message_data.volume.value());
+    result = exchange.place_order(message_data.side.value(), user_data->user_id,
+                                  message_data.price.value(),
+                                  message_data.volume.value());
 
-    std::string to_send{};
-    ec = glz::write_json(result, to_send);
-    if (ec) {
-      std::cout << glz::format_error(ec, message);
-      return;
-    }
-    app->publish(DEFAULT_TOPIC, to_send, opCode);
+    app->publish(DEFAULT_TOPIC,
+                 glz::write_json(result).value_or("Error encoding JSON."),
+                 opCode);
   };
 
   app->ws<UserData>("/asset/" + to_string_lower(asset),

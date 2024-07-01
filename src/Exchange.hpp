@@ -111,7 +111,7 @@ struct Exchange {
                                    int price, int volume) -> Trade {
     std::scoped_lock lock(cash_mutex);
 
-    const int order_cost = price * volume;
+    int order_cost = price * volume;
     switch (taker_side) {
       case BUY:
         user_cash[maker_id].amount_held += order_cost;
@@ -144,17 +144,16 @@ struct Exchange {
       -> std::optional<std::vector<Trade>> {
     std::vector<Trade> trades;
 
-    const auto begin =
-        side == Side::BUY ? sell_orders.begin() : buy_orders.begin();
-    const auto end = side == Side::BUY ? sell_orders.upper_bound(price)
-                                       : buy_orders.upper_bound(price);
+    auto begin = side == Side::BUY ? sell_orders.begin() : buy_orders.begin();
+    auto end = side == Side::BUY ? sell_orders.upper_bound(price)
+                                 : buy_orders.upper_bound(price);
 
     for (auto price_it = begin; price_it != end && volume > 0;) {
       auto& level = price_it->second;
 
       for (auto level_it = level.begin(); level_it != level.end() && volume > 0;
            ++level_it) {
-        const int trade_volume = std::min(volume, level_it->volume);
+        int trade_volume = std::min(volume, level_it->volume);
 
         volume -= trade_volume;
         level_it->volume -= trade_volume;

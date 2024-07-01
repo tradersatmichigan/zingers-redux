@@ -9,7 +9,8 @@
 #include "Asset.hpp"
 #include "Exchange.hpp"
 
-std::mutex output_mutex;  // NOLINT
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
+std::mutex output_mutex;
 
 auto generate_user_ids(size_t num_users) -> std::vector<int> {
   std::default_random_engine e1(42);
@@ -159,14 +160,14 @@ auto example(Exchange& exchange) -> void {
   std::cout << exchange;
 }
 
-constexpr size_t num_assets = 4;
+constexpr size_t NUM_ASSETS = 4;
 
 auto main() -> int {
-  std::vector<std::thread*> threads(num_assets);
+  std::vector<std::thread*> threads(NUM_ASSETS);
 
   std::vector<int> user_ids = generate_user_ids(100);
 
-  for (size_t i = 0; i < num_assets; ++i) {
+  for (size_t i = 0; i < NUM_ASSETS; ++i) {
     threads[i] = new std::thread([i, &user_ids]() {
       Exchange exchange(static_cast<Asset>(i));
 
