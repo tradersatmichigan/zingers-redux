@@ -23,6 +23,7 @@ struct Trade {
   int seller_id;
   int price;
   int volume;
+  int order_id;
 };
 
 struct Order {
@@ -30,15 +31,25 @@ struct Order {
   int user_id;
   int price;
   int volume;
+  int order_id;
 
-  Order(Side side, int user_id, int price, int volume)
-      : side(side), user_id(user_id), price(price), volume(volume){};
+  Order(Side side, int user_id, int price, int volume, int order_id)
+      : side(side),
+        user_id(user_id),
+        price(price),
+        volume(volume),
+        order_id(order_id){};
 };
 
 struct OrderResult {
-  std::optional<std::string> error;
+  std::optional<std::string_view> error;
   std::optional<std::vector<Trade>> trades;
   std::optional<Order> unmatched_order;
+};
+
+struct CancelResult {
+  std::optional<std::string_view> error;
+  std::optional<int> order_id;
 };
 
 struct Cash {
@@ -52,31 +63,34 @@ struct AssetAmount {
 };
 
 struct Exchange {
-  Asset asset;
+  /* Used by all instances of Exchange */
   static inline std::unordered_map<int, Cash> user_cash;
   static inline std::mutex cash_mutex;
+
+  /* Per-exchange information */
+  Asset asset;
   std::unordered_map<int, AssetAmount> user_assets;
   std::map<int, std::deque<Order>, std::greater<>> buy_orders;
   std::map<int, std::deque<Order>> sell_orders;
+  std::unordered_map<int, std::deque<Order>::iterator> all_orders;
+  int order_number{0};
 
   Exchange(Asset asset) : asset(asset) {}
 
-  [[nodiscard]] auto register_user(int user_id, int cash, int assets)
-      -> std::optional<std::string_view> {
+  auto register_user(int user_id, int cash, int assets) -> void {
     std::scoped_lock lock(cash_mutex);
     if (user_assets.contains(user_id)) {
-      return "Error: User already registered on exchange" + to_string(asset);
+      return;
     }
     if (!user_cash.contains(user_id)) {
       user_cash[user_id] = {cash, cash};
     }
     user_assets[user_id] = {assets, assets};
-    return {};
   }
 
   [[nodiscard]] auto validate_order(Side side, int user_id, int price,
                                     int volume) const
-      -> std::optional<std::string> {
+      -> std::optional<std::string_view> {
     if (!user_cash.contains(user_id)) {
       return "User with id " + std::to_string(user_id) + " not found.";
     }
@@ -108,7 +122,8 @@ struct Exchange {
   }
 
   [[nodiscard]] auto execute_trade(Side taker_side, int maker_id, int taker_id,
-                                   int price, int volume) -> Trade {
+                                   int price, int volume,
+                                   int order_id) -> Trade {
     std::scoped_lock lock(cash_mutex);
 
     int order_cost = price * volume;
@@ -137,7 +152,8 @@ struct Exchange {
         break;
     }
     return {taker_side == Side::BUY ? taker_id : maker_id,
-            taker_side == Side::BUY ? maker_id : taker_id, price, volume};
+            taker_side == Side::BUY ? maker_id : taker_id, price, volume,
+            order_id};
   }
 
   [[nodiscard]] auto match_order(Side side, int user_id, int price, int& volume)
@@ -159,7 +175,8 @@ struct Exchange {
         level_it->volume -= trade_volume;
 
         trades.push_back(execute_trade(side, level_it->user_id, user_id,
-                                       level_it->price, trade_volume));
+                                       level_it->price, trade_volume,
+                                       level_it->order_id));
 
         if (level_it->volume == 0) {
           level.erase(level_it);
@@ -189,10 +206,10 @@ struct Exchange {
 
   [[nodiscard]] auto place_order(Side side, int user_id, int price,
                                  int volume) -> OrderResult {
-    std::optional<std::string> error =
+    std::optional<std::string_view> error =
         validate_order(side, user_id, price, volume);
     if (error.has_value()) {
-      return {std::move(error.value()), {}, {}};
+      return {error.value().data(), {}, {}};
     }
 
     std::optional<std::vector<Trade>> trades =
@@ -203,15 +220,45 @@ struct Exchange {
     }
 
     switch (side) {
-      case BUY:
-        buy_orders[price].emplace_back(side, user_id, price, volume);
+      case BUY: {
+        std::scoped_lock lock(cash_mutex);
+        user_cash[user_id].buying_power -= price * volume;
+        buy_orders[price].emplace_back(side, user_id, price, volume,
+                                       order_number);
+        all_orders[order_number] = std::prev(buy_orders[price].end());
         break;
+      }
       case SELL:
-        sell_orders[price].emplace_back(side, user_id, price, volume);
+        user_assets[user_id].selling_power -= volume;
+        sell_orders[price].emplace_back(side, user_id, price, volume,
+                                        order_number);
+        all_orders[order_number] = std::prev(sell_orders[price].end());
         break;
     }
 
-    return {{}, trades, Order{side, user_id, price, volume}};
+    return {{}, trades, Order{side, user_id, price, volume, order_number++}};
+  }
+
+  [[nodiscard]] auto cancel_order(int order_id) -> std::optional<std::string> {
+    if (!all_orders.contains(order_id)) {
+      return "Error: Order not found.";
+    }
+    auto order_iter = all_orders[order_id];
+    switch (order_iter->side) {
+      case BUY:
+        buy_orders[order_iter->price].erase(order_iter);
+        if (buy_orders[order_iter->price].empty()) {
+          buy_orders.erase(order_iter->price);
+        }
+        break;
+      case SELL:
+        sell_orders[order_iter->price].erase(order_iter);
+        if (sell_orders[order_iter->price].empty()) {
+          sell_orders.erase(order_iter->price);
+        }
+        break;
+    }
+    return {};
   }
 };
 
@@ -222,7 +269,8 @@ auto inline operator<<(std::ostream& os,
   for (const auto& [price, orders] : exchange.buy_orders) {
     os << "    $" << price << ": " << std::endl;
     for (const Order& order : orders) {
-      os << "      user_id: " << order.user_id << ", volume: " << order.volume
+      os << "      order_id: " << order.order_id
+         << ", user_id: " << order.user_id << ", volume: " << order.volume
          << std::endl;
     }
   }
@@ -230,7 +278,8 @@ auto inline operator<<(std::ostream& os,
   for (const auto& [price, orders] : exchange.sell_orders) {
     os << "    $" << price << ": " << std::endl;
     for (const Order& order : orders) {
-      os << "      user_id: " << order.user_id << ", volume: " << order.volume
+      os << "      order_id: " << order.order_id
+         << ", user_id: " << order.user_id << ", volume: " << order.volume
          << std::endl;
     }
   }
