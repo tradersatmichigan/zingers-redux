@@ -35,3 +35,6 @@
 uWebSockets/
 output.*
 old/
+static/js
+bun.lockb
+node_modules/
