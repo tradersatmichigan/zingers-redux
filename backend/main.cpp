@@ -3,6 +3,7 @@
 
 #include <glaze/glaze.hpp>
 #include "App.h"
+#include "WebSocketProtocol.h"
 
 #include "Asset.hpp"
 #include "Exchange.hpp"
@@ -36,11 +37,12 @@ struct IncomingMessage {
 
 auto handle_register_message(Exchange& exchange,
                              uWS::WebSocket<true, true, UserData>* ws,
-                             const IncomingMessage& message_data) -> void {
+                             const IncomingMessage& message_data,
+                             uWS::OpCode op_code) -> void {
   OrderResult result{};
   if (!message_data.user_id.has_value()) {
     result.error = "Error: Must include user_id when registering.";
-    ws->send(glz::write_json(result).value_or("Error encoding JSON."));
+    ws->send(glz::write_json(result).value_or("Error encoding JSON."), op_code);
     return;
   }
 
@@ -48,7 +50,8 @@ auto handle_register_message(Exchange& exchange,
 
   ws->getUserData()->user_id = message_data.user_id.value();
   ws->send("Registered with user id: " +
-           std::to_string(message_data.user_id.value()) + ".");
+               std::to_string(message_data.user_id.value()) + ".",
+           op_code);
 }
 
 auto handle_cancel_message(Exchange& exchange, uWS::SSLApp* app,
@@ -58,14 +61,14 @@ auto handle_cancel_message(Exchange& exchange, uWS::SSLApp* app,
   CancelResult result{};
   if (!message_data.order_id.has_value()) {
     result.error = "Error: Must include order_id when canceling an order.";
-    ws->send(glz::write_json(result).value_or("Error encoding JSON."));
+    ws->send(glz::write_json(result).value_or("Error encoding JSON."), op_code);
     return;
   }
   std::optional<std::string> error =
       exchange.cancel_order(message_data.order_id.value());
   if (!error.has_value()) {
     result.error = error;
-    ws->send(glz::write_json(result).value_or("Error encoding JSON."));
+    ws->send(glz::write_json(result).value_or("Error encoding JSON."), op_code);
     return;
   }
   result.order_id = message_data.order_id.value();
@@ -78,7 +81,8 @@ auto run_asset_socket(Asset asset, Exchange& exchange) {
   auto* app = new uWS::SSLApp();
 
   auto on_open = [asset](uWS::WebSocket<true, true, UserData>* ws) {
-    ws->send("Connected to exchange asset " + to_string(asset));
+    ws->send("Connected to exchange asset " + to_string(asset),
+             uWS::OpCode::TEXT);
     ws->subscribe(DEFAULT_TOPIC);
   };
 
@@ -97,8 +101,15 @@ auto run_asset_socket(Asset asset, Exchange& exchange) {
     OrderResult result{};
 
     if (message_data.reg.has_value() && message_data.reg.value()) {
-      handle_register_message(exchange, ws, message_data);
+      handle_register_message(exchange, ws, message_data, op_code);
       std::cout << exchange << std::endl;
+      return;
+    }
+
+    if (user_data->user_id == -1) {
+      result.error = "Error: Not registered on this exchange";
+      ws->send(glz::write_json(result).value_or("Error encoding JSON."),
+               op_code);
       return;
     }
 
@@ -151,25 +162,6 @@ auto main() -> int {
     threads[i] = new std::thread(
         [asset, &exchange]() { run_asset_socket(asset, exchange); });
   }
-
-  uWS::SSLApp()
-      .get("/*",
-           [](uWS::HttpResponse<true>* res, uWS::HttpRequest* req) {
-             res->end("Hello world!");
-             for (auto iter = req->begin(); iter != req->end(); ++iter) {
-               std::cout << iter.ptr->key << ": " << iter.ptr->value
-                         << std::endl;
-             }
-           })
-      .listen(3000,
-              [](auto* listen_socket) {
-                if (listen_socket) {
-                  std::cout << "Listening on port " << 3000 << std::endl;
-                }
-              })
-      .run();
-
-  std::cout << "Failed to listen on port 3000" << std::endl;
 
   std::for_each(threads.begin(), threads.end(),
                 [](std::thread* t) { t->join(); });

@@ -7,7 +7,6 @@
 #include <mutex>
 #include <optional>
 #include <ostream>
-#include <string_view>
 #include <unordered_map>
 #include <vector>
 
@@ -42,13 +41,13 @@ struct Order {
 };
 
 struct OrderResult {
-  std::optional<std::string_view> error;
+  std::optional<std::string> error;
   std::optional<std::vector<Trade>> trades;
   std::optional<Order> unmatched_order;
 };
 
 struct CancelResult {
-  std::optional<std::string_view> error;
+  std::optional<std::string> error;
   std::optional<int> order_id;
 };
 
@@ -90,7 +89,7 @@ struct Exchange {
 
   [[nodiscard]] auto validate_order(Side side, int user_id, int price,
                                     int volume) const
-      -> std::optional<std::string_view> {
+      -> std::optional<std::string> {
     if (!user_cash.contains(user_id)) {
       return "User with id " + std::to_string(user_id) + " not found.";
     }
@@ -206,10 +205,10 @@ struct Exchange {
 
   [[nodiscard]] auto place_order(Side side, int user_id, int price,
                                  int volume) -> OrderResult {
-    std::optional<std::string_view> error =
+    std::optional<std::string> error =
         validate_order(side, user_id, price, volume);
     if (error.has_value()) {
-      return {error.value().data(), {}, {}};
+      return {error.value(), {}, {}};
     }
 
     std::optional<std::vector<Trade>> trades =

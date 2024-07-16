@@ -50,7 +50,7 @@ auto benchmark(Exchange& exchange, const std::vector<int>& user_ids,
                size_t num_orders) -> void {
   auto t_start = std::chrono::high_resolution_clock::now();
   for (int user_id : user_ids) {
-    exchange.register_user(user_id, 1'000'000, 100'000);
+    exchange.register_user(user_id, 100'000'000, 100'000'000);
   }
   auto t_end = std::chrono::high_resolution_clock::now();
 

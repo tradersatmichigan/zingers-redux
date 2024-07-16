@@ -2,14 +2,14 @@
 #include <thread>
 #include "App.h"
 
-constexpr int num_assets = 4;
+constexpr int NUM_ASSETS = 4;
 
 auto main() -> int {
   struct PerSocketData {};
 
-  std::vector<std::thread*> threads(num_assets);
+  std::vector<std::thread*> threads(NUM_ASSETS);
 
-  for (size_t i = 0; i < num_assets; ++i) {
+  for (size_t i = 0; i < NUM_ASSETS; ++i) {
     threads[i] = new std::thread([i]() {
       uWS::App()
           .ws<PerSocketData>(
