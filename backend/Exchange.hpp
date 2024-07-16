@@ -1,6 +1,7 @@
 #ifndef EXCHANGE_HPP
 #define EXCHANGE_HPP
 
+#include <atomic>
 #include <cstdint>
 #include <deque>
 #include <map>
@@ -65,6 +66,7 @@ struct Exchange {
   /* Used by all instances of Exchange */
   static inline std::unordered_map<int, Cash> user_cash;
   static inline std::mutex cash_mutex;
+  static inline std::atomic_int order_number{0};
 
   /* Per-exchange information */
   Asset asset;
@@ -72,7 +74,6 @@ struct Exchange {
   std::map<int, std::deque<Order>, std::greater<>> buy_orders;
   std::map<int, std::deque<Order>> sell_orders;
   std::unordered_map<int, std::deque<Order>::iterator> all_orders;
-  int order_number{0};
 
   Exchange(Asset asset) : asset(asset) {}
 
