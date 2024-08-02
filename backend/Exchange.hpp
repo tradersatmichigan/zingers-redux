@@ -27,14 +27,17 @@ struct Trade {
 };
 
 struct Order {
+  Asset asset;
   Side side;
   int user_id;
   int price;
   int volume;
   int order_id;
 
-  Order(Side side, int user_id, int price, int volume, int order_id)
-      : side(side),
+  Order(Asset asset, Side side, int user_id, int price, int volume,
+        int order_id)
+      : asset(asset),
+        side(side),
         user_id(user_id),
         price(price),
         volume(volume),
@@ -151,24 +154,25 @@ struct Exchange {
         user_assets[taker_id].selling_power -= volume;
         break;
     }
-    return {taker_side == Side::BUY ? taker_id : maker_id,
-            taker_side == Side::BUY ? maker_id : taker_id, price, volume,
-            order_id};
+    return {taker_side == BUY ? taker_id : maker_id,
+            taker_side == BUY ? maker_id : taker_id, price, volume, order_id};
   }
 
   [[nodiscard]] auto match_order(Side side, int user_id, int price, int& volume)
       -> std::optional<std::vector<Trade>> {
     std::vector<Trade> trades;
 
-    auto begin = side == Side::BUY ? sell_orders.begin() : buy_orders.begin();
-    auto end = side == Side::BUY ? sell_orders.upper_bound(price)
-                                 : buy_orders.upper_bound(price);
+    auto begin = side == BUY ? sell_orders.begin() : buy_orders.begin();
+    auto end = side == BUY ? sell_orders.end() : buy_orders.end();
 
-    for (auto price_it = begin; price_it != end && volume > 0;) {
+    for (auto price_it = begin;
+         price_it != end &&
+         (side == BUY ? price_it->first <= price : price_it->first >= price) &&
+         volume > 0;) {
       auto& level = price_it->second;
 
-      for (auto level_it = level.begin(); level_it != level.end() && volume > 0;
-           ++level_it) {
+      for (auto level_it = level.begin();
+           level_it != level.end() && volume > 0;) {
         int trade_volume = std::min(volume, level_it->volume);
 
         volume -= trade_volume;
@@ -177,9 +181,10 @@ struct Exchange {
         trades.push_back(execute_trade(side, level_it->user_id, user_id,
                                        level_it->price, trade_volume,
                                        level_it->order_id));
-
         if (level_it->volume == 0) {
-          level.erase(level_it);
+          level.erase(level_it++);
+        } else {
+          ++level_it;
         }
       }
 
@@ -201,7 +206,7 @@ struct Exchange {
       return {};
     }
 
-    return trades;
+    return std::move(trades);
   }
 
   [[nodiscard]] auto place_order(Side side, int user_id, int price,
@@ -223,41 +228,48 @@ struct Exchange {
       case BUY: {
         std::scoped_lock lock(cash_mutex);
         user_cash[user_id].buying_power -= price * volume;
-        buy_orders[price].emplace_back(side, user_id, price, volume,
+        buy_orders[price].emplace_back(asset, side, user_id, price, volume,
                                        order_number);
         all_orders[order_number] = std::prev(buy_orders[price].end());
         break;
       }
       case SELL:
         user_assets[user_id].selling_power -= volume;
-        sell_orders[price].emplace_back(side, user_id, price, volume,
+        sell_orders[price].emplace_back(asset, side, user_id, price, volume,
                                         order_number);
         all_orders[order_number] = std::prev(sell_orders[price].end());
         break;
     }
 
-    return {{}, trades, Order{side, user_id, price, volume, order_number++}};
+    return {
+        {}, trades, Order{asset, side, user_id, price, volume, order_number++}};
   }
 
   [[nodiscard]] auto cancel_order(int order_id) -> std::optional<std::string> {
     if (!all_orders.contains(order_id)) {
-      return "Error: Order not found.";
+      return "Order not found.";
     }
     auto order_iter = all_orders[order_id];
     switch (order_iter->side) {
-      case BUY:
+      case BUY: {
+        std::scoped_lock lock(cash_mutex);
+        user_cash[order_iter->user_id].buying_power +=
+            order_iter->price * order_iter->volume;
         buy_orders[order_iter->price].erase(order_iter);
         if (buy_orders[order_iter->price].empty()) {
           buy_orders.erase(order_iter->price);
         }
         break;
+      }
       case SELL:
         sell_orders[order_iter->price].erase(order_iter);
+        user_assets[order_iter->user_id].selling_power += order_iter->volume;
         if (sell_orders[order_iter->price].empty()) {
           sell_orders.erase(order_iter->price);
         }
         break;
     }
+    all_orders.erase(order_id);
     return {};
   }
 };

@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <string>
+#include <utility>
 
 enum Asset : uint8_t {
   DRESSING = 0,
@@ -21,6 +22,8 @@ auto constexpr to_string(Asset asset) -> std::string {
       return "SWISS";
     case PASTRAMI:
       return "PASTRAMI";
+    default:
+      std::unreachable();
   }
 }
 
@@ -34,6 +37,8 @@ auto constexpr to_string_lower(Asset asset) -> std::string {
       return "swiss";
     case PASTRAMI:
       return "pastrami";
+    default:
+      std::unreachable();
   }
 }
 

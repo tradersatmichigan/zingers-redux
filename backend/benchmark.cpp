@@ -24,7 +24,7 @@ auto generate_user_ids(size_t num_users) -> std::vector<int> {
   return {set.begin(), set.end()};
 }
 
-auto generate_orders(const std::vector<int>& user_ids,
+auto generate_orders(Asset asset, const std::vector<int>& user_ids,
                      size_t num_orders) -> std::vector<Order> {
   std::default_random_engine e1(42);
   std::uniform_int_distribution<int> side_generator(0, 1);
@@ -40,7 +40,7 @@ auto generate_orders(const std::vector<int>& user_ids,
     int user_id = user_ids[id_generator(e1)];
     int price = price_generator(e1);
     int volume = volume_generator(e1);
-    orders.emplace_back(side, user_id, price, volume, i);
+    orders.emplace_back(asset, side, user_id, price, volume, i);
   }
 
   return orders;
@@ -61,7 +61,8 @@ auto benchmark(Exchange& exchange, const std::vector<int>& user_ids,
               << std::endl;
   }
 
-  std::vector<Order> orders = generate_orders(user_ids, num_orders);
+  std::vector<Order> orders =
+      generate_orders(exchange.asset, user_ids, num_orders);
 
   t_start = std::chrono::high_resolution_clock::now();
   for (Order order : orders) {
@@ -94,7 +95,8 @@ auto benchmark_to_csv(Exchange& exchange, const std::vector<int>& user_ids,
               << std::endl;
   }
 
-  std::vector<Order> orders = generate_orders(user_ids, num_orders);
+  std::vector<Order> orders =
+      generate_orders(exchange.asset, user_ids, num_orders);
 
   for (Order order : orders) {
     auto res = exchange.place_order(order.side, order.user_id, order.price,
@@ -102,9 +104,9 @@ auto benchmark_to_csv(Exchange& exchange, const std::vector<int>& user_ids,
     {
       std::scoped_lock lock(output_mutex);
       std::cout << to_string(exchange.asset) << ","
-                << (order.side == Side::BUY ? "BUY" : "SELL") << ","
-                << order.user_id << "," << order.price << "," << order.volume
-                << ",,,,," << std::endl;
+                << (order.side == BUY ? "BUY" : "SELL") << "," << order.user_id
+                << "," << order.price << "," << order.volume << ",,,,,"
+                << std::endl;
     }
     if (res.error.has_value()) {
       std::scoped_lock lock(output_mutex);
@@ -125,11 +127,11 @@ auto example(Exchange& exchange) -> void {
   exchange.register_user(0, 1000, 100);
   exchange.register_user(1, 1000, 100);
 
-  OrderResult res = exchange.place_order(Side::BUY, 0, 10, 1);
+  OrderResult res = exchange.place_order(BUY, 0, 10, 1);
   if (res.error.has_value()) {
     std::cout << res.error.value() << std::endl;
   }
-  res = exchange.place_order(Side::SELL, 1, 10, 2);
+  res = exchange.place_order(SELL, 1, 10, 2);
   if (res.error.has_value()) {
     std::cout << res.error.value() << std::endl;
   }
@@ -144,7 +146,7 @@ auto example(Exchange& exchange) -> void {
   std::cout << exchange;
 }
 
-constexpr size_t NUM_ASSETS = 4;
+constexpr size_t NUM_ASSETS = 1;
 
 auto main() -> int {
   std::vector<std::thread*> threads(NUM_ASSETS);
@@ -155,7 +157,7 @@ auto main() -> int {
     threads[i] = new std::thread([i, &user_ids]() {
       Exchange exchange(static_cast<Asset>(i));
 
-      benchmark(exchange, user_ids, 1'000'000);
+      benchmark_to_csv(exchange, user_ids, 1'000'000);
     });
   }
 
