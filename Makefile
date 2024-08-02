@@ -1,6 +1,6 @@
 CXX = g++
 CXXFLAGS = -march=native -O3 -Wpedantic -Wall -Wextra -Wsign-conversion \
-					 -Wconversion -std=c++20 \
+					 -Wconversion -std=c++2b \
 					 -flto -fsanitize=address -g \
 					 -L/opt/homebrew/lib -lssl -lcrypto
 IFLAGS = -I/usr/local/include/uWebSockets -I/usr/local/include/uSockets \
