@@ -2,8 +2,8 @@
 #define EXCHANGE_HPP
 
 #include <atomic>
-#include <cstdint>
 #include <deque>
+#include <functional>
 #include <map>
 #include <mutex>
 #include <optional>
@@ -13,9 +13,9 @@
 
 #include "Asset.hpp"
 
-enum Side : uint8_t {
-  BUY = 0,
-  SELL = 1,
+enum Side : bool {
+  BUY = false,
+  SELL = true,
 };
 
 struct Trade {
@@ -74,8 +74,9 @@ struct Exchange {
   /* Per-exchange information */
   Asset asset;
   std::unordered_map<int, AssetAmount> user_assets;
-  std::map<int, std::deque<Order>, std::greater<>> buy_orders;
-  std::map<int, std::deque<Order>> sell_orders;
+  using mymap = std::map<int, std::deque<Order>, std::function<bool(int, int)>>;
+  mymap buy_orders{std::greater<>()};
+  mymap sell_orders{std::less<>()};
   std::unordered_map<int, std::deque<Order>::iterator> all_orders;
 
   Exchange(Asset asset) : asset(asset) {}
@@ -162,43 +163,29 @@ struct Exchange {
       -> std::optional<std::vector<Trade>> {
     std::vector<Trade> trades;
 
-    auto begin = side == BUY ? sell_orders.begin() : buy_orders.begin();
-    auto end = side == BUY ? sell_orders.end() : buy_orders.end();
+    auto& opposing_orders = side == BUY ? sell_orders : buy_orders;
 
-    for (auto price_it = begin;
-         price_it != end &&
-         (side == BUY ? price_it->first <= price : price_it->first >= price) &&
-         volume > 0;) {
-      auto& level = price_it->second;
+    auto cmp = [side](int lhs, int rhs) -> bool {
+      return side == BUY ? lhs >= rhs : lhs <= rhs;
+    };
 
-      for (auto level_it = level.begin();
-           level_it != level.end() && volume > 0;) {
-        int trade_volume = std::min(volume, level_it->volume);
-
+    while (volume > 0 && !opposing_orders.empty() &&
+           cmp(price, opposing_orders.begin()->first)) {
+      auto& level = opposing_orders.begin()->second;
+      while (volume > 0 && !level.empty()) {
+        auto iter = level.begin();
+        int trade_volume = std::min(volume, iter->volume);
         volume -= trade_volume;
-        level_it->volume -= trade_volume;
-
-        trades.push_back(execute_trade(side, level_it->user_id, user_id,
-                                       level_it->price, trade_volume,
-                                       level_it->order_id));
-        if (level_it->volume == 0) {
-          level.erase(level_it++);
-        } else {
-          ++level_it;
+        iter->volume -= trade_volume;
+        trades.push_back(execute_trade(side, iter->user_id, user_id,
+                                       iter->price, trade_volume,
+                                       iter->order_id));
+        if (iter->volume == 0) {
+          level.erase(iter);
         }
       }
-
-      ++price_it;
-
       if (level.empty()) {
-        switch (side) {
-          case BUY:
-            sell_orders.erase(std::prev(price_it));
-            break;
-          case SELL:
-            buy_orders.erase(std::prev(price_it));
-            break;
-        }
+        opposing_orders.erase(opposing_orders.begin());
       }
     }
 

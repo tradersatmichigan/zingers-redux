@@ -128,6 +128,7 @@ auto example(Exchange& exchange) -> void {
   exchange.register_user(1, 1000, 100);
 
   OrderResult res = exchange.place_order(BUY, 0, 10, 1);
+  std::cout << exchange;
   if (res.error.has_value()) {
     std::cout << res.error.value() << std::endl;
   }
@@ -146,7 +147,7 @@ auto example(Exchange& exchange) -> void {
   std::cout << exchange;
 }
 
-constexpr size_t NUM_ASSETS = 1;
+constexpr size_t NUM_ASSETS = 4;
 
 auto main() -> int {
   std::vector<std::thread*> threads(NUM_ASSETS);
@@ -157,7 +158,8 @@ auto main() -> int {
     threads[i] = new std::thread([i, &user_ids]() {
       Exchange exchange(static_cast<Asset>(i));
 
-      benchmark_to_csv(exchange, user_ids, 1'000'000);
+      benchmark(exchange, user_ids, 1'000'000);
+      // example(exchange);
     });
   }
 
