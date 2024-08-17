@@ -12,8 +12,8 @@
 #include "App.h"
 #include "WebSocketProtocol.h"
 
-#include "Asset.hpp"
 #include "Exchange.hpp"
+#include "Models.hpp"
 
 // See https://github.com/stephenberry/glaze?tab=readme-ov-file#explicit-metadata
 template <>

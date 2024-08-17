@@ -6,8 +6,8 @@
 #include <unordered_set>
 #include <vector>
 
-#include "Asset.hpp"
 #include "Exchange.hpp"
+#include "Models.hpp"
 
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 std::mutex output_mutex;
@@ -156,7 +156,7 @@ auto main() -> int {
 
   for (size_t i = 0; i < NUM_ASSETS; ++i) {
     threads[i] = new std::thread([i, &user_ids]() {
-      Exchange exchange(static_cast<Asset>(i));
+      Exchange exchange(static_cast<Asset>(i % 4));
 
       benchmark(exchange, user_ids, 1'000'000);
       // example(exchange);

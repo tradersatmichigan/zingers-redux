@@ -11,59 +11,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "Asset.hpp"
-
-enum Side : bool {
-  BUY = false,
-  SELL = true,
-};
-
-struct Trade {
-  int buyer_id;
-  int seller_id;
-  int price;
-  int volume;
-  int order_id;
-};
-
-struct Order {
-  Asset asset;
-  Side side;
-  int user_id;
-  int price;
-  int volume;
-  int order_id;
-
-  Order(Asset asset, Side side, int user_id, int price, int volume,
-        int order_id)
-      : asset(asset),
-        side(side),
-        user_id(user_id),
-        price(price),
-        volume(volume),
-        order_id(order_id){};
-};
-
-struct OrderResult {
-  std::optional<std::string> error;
-  std::optional<std::vector<Trade>> trades;
-  std::optional<Order> unmatched_order;
-};
-
-struct CancelResult {
-  std::optional<std::string> error;
-  std::optional<int> order_id;
-};
-
-struct Cash {
-  int amount_held;
-  int buying_power;
-};
-
-struct AssetAmount {
-  int amount_held;
-  int selling_power;
-};
+#include "Models.hpp"
 
 struct Exchange {
   /* Used by all instances of Exchange */
@@ -193,7 +141,7 @@ struct Exchange {
       return {};
     }
 
-    return std::move(trades);
+    return trades;
   }
 
   [[nodiscard]] auto place_order(Side side, int user_id, int price,
