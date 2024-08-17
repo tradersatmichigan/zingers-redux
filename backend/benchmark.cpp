@@ -1,4 +1,5 @@
 #include <chrono>
+#include <cstdint>
 #include <iostream>
 #include <mutex>
 #include <random>
@@ -12,11 +13,11 @@
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 std::mutex output_mutex;
 
-auto generate_user_ids(size_t num_users) -> std::vector<int> {
+auto generate_user_ids(size_t num_users) -> std::vector<uint32_t> {
   std::default_random_engine e1(42);
-  std::uniform_int_distribution<int> id_generator(1, 1'000'000);
+  std::uniform_int_distribution<uint32_t> id_generator(1, 1'000'000);
 
-  std::unordered_set<int> set;
+  std::unordered_set<uint32_t> set;
   while (set.size() < num_users) {
     set.insert(id_generator(e1));
   }
@@ -24,32 +25,32 @@ auto generate_user_ids(size_t num_users) -> std::vector<int> {
   return {set.begin(), set.end()};
 }
 
-auto generate_orders(Asset asset, const std::vector<int>& user_ids,
+auto generate_orders(Asset asset, const std::vector<uint32_t>& user_ids,
                      size_t num_orders) -> std::vector<Order> {
   std::default_random_engine e1(42);
-  std::uniform_int_distribution<int> side_generator(0, 1);
+  std::uniform_int_distribution<uint32_t> side_generator(0, 1);
   std::uniform_int_distribution<size_t> id_generator(0, user_ids.size() - 1);
-  std::uniform_int_distribution<int> price_generator(1, 50);
-  std::uniform_int_distribution<int> volume_generator(1, 50);
+  std::uniform_int_distribution<uint32_t> price_generator(1, 50);
+  std::uniform_int_distribution<uint32_t> volume_generator(1, 50);
 
   std::vector<Order> orders;
   orders.reserve(num_orders);
 
   for (size_t i = 0; i < num_orders; ++i) {
     Side side = static_cast<Side>(side_generator(e1));
-    int user_id = user_ids[id_generator(e1)];
-    int price = price_generator(e1);
-    int volume = volume_generator(e1);
+    uint32_t user_id = user_ids[id_generator(e1)];
+    uint32_t price = price_generator(e1);
+    uint32_t volume = volume_generator(e1);
     orders.emplace_back(asset, side, user_id, price, volume, i);
   }
 
   return orders;
 }
 
-auto benchmark(Exchange& exchange, const std::vector<int>& user_ids,
+auto benchmark(Exchange& exchange, const std::vector<uint32_t>& user_ids,
                size_t num_orders) -> void {
   auto t_start = std::chrono::high_resolution_clock::now();
-  for (int user_id : user_ids) {
+  for (uint32_t user_id : user_ids) {
     exchange.register_user(user_id, 100'000'000, 100'000'000);
   }
   auto t_end = std::chrono::high_resolution_clock::now();
@@ -83,9 +84,9 @@ auto benchmark(Exchange& exchange, const std::vector<int>& user_ids,
   }
 }
 
-auto benchmark_to_csv(Exchange& exchange, const std::vector<int>& user_ids,
+auto benchmark_to_csv(Exchange& exchange, const std::vector<uint32_t>& user_ids,
                       size_t num_orders) -> void {
-  for (int user_id : user_ids) {
+  for (uint32_t user_id : user_ids) {
     exchange.register_user(user_id, 1'000'000, 100'000);
   }
   {
@@ -152,7 +153,7 @@ constexpr size_t NUM_ASSETS = 4;
 auto main() -> int {
   std::vector<std::thread*> threads(NUM_ASSETS);
 
-  std::vector<int> user_ids = generate_user_ids(100);
+  std::vector<uint32_t> user_ids = generate_user_ids(100);
 
   for (size_t i = 0; i < NUM_ASSETS; ++i) {
     threads[i] = new std::thread([i, &user_ids]() {

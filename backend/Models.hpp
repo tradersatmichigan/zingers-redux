@@ -2,8 +2,10 @@
 #define MODELS_HPP
 
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <utility>
+#include <vector>
 
 enum Asset : uint8_t {
   DRESSING = 0,
@@ -48,29 +50,29 @@ enum Side : bool {
 };
 
 struct Trade {
-  int buyer_id;
-  int seller_id;
-  int price;
-  int volume;
-  int order_id;
+  uint32_t buyer_id;
+  uint32_t seller_id;
+  uint32_t price;
+  uint32_t volume;
+  uint32_t order_id;
 };
 
 struct Order {
   Asset asset;
   Side side;
-  int user_id;
-  int price;
-  int volume;
-  int order_id;
+  uint32_t user_id;
+  uint32_t price;
+  uint32_t volume;
+  uint32_t order_id;
 
-  Order(Asset asset, Side side, int user_id, int price, int volume,
-        int order_id)
+  Order(Asset asset, Side side, uint32_t user_id, uint32_t price,
+        uint32_t volume, uint32_t order_id)
       : asset(asset),
         side(side),
         user_id(user_id),
         price(price),
         volume(volume),
-        order_id(order_id){};
+        order_id(order_id) {};
 };
 
 struct OrderResult {
@@ -81,17 +83,17 @@ struct OrderResult {
 
 struct CancelResult {
   std::optional<std::string> error;
-  std::optional<int> order_id;
+  std::optional<uint32_t> order_id;
 };
 
 struct Cash {
-  int amount_held;
-  int buying_power;
+  uint32_t amount_held;
+  uint32_t buying_power;
 };
 
 struct AssetAmount {
-  int amount_held;
-  int selling_power;
+  uint32_t amount_held;
+  uint32_t selling_power;
 };
 
 #endif  // MODELS_HPP

@@ -24,40 +24,40 @@ struct glz::meta<Order> {
                                        &T::price, &T::volume, &T::order_id);
 };
 
-constexpr int NUM_ASSETS = 4;
+constexpr uint32_t NUM_ASSETS = 4;
 constexpr std::string_view DEFAULT_TOPIC = "default";
 
 struct UserData {
-  int user_id{-1};
+  uint32_t user_id{0};
 };
 
 struct IncomingMessage {
   std::optional<bool> reg;
-  std::optional<int> user_id;
+  std::optional<uint32_t> user_id;
   std::optional<Asset> asset;
   std::optional<Side> side;
-  std::optional<int> price;
-  std::optional<int> volume;
+  std::optional<uint32_t> price;
+  std::optional<uint32_t> volume;
   std::optional<bool> cancel;
-  std::optional<int> order_id;
+  std::optional<uint32_t> order_id;
 };
 
 struct GameState {
   std::optional<std::string> error;
-  std::unordered_map<int, Order> orders;
-  int cash{0};
-  int buying_power{0};
-  std::vector<int> assets_held;
-  std::vector<int> selling_power;
+  std::unordered_map<uint32_t, Order> orders;
+  uint32_t cash{0};
+  uint32_t buying_power{0};
+  std::vector<uint32_t> assets_held;
+  std::vector<uint32_t> selling_power;
 };
 
 struct LoginResult {
   std::optional<std::string> error;
-  std::optional<int> user_id;
+  std::optional<uint32_t> user_id;
 };
 
-const std::vector<int> STARTING_CASH = {1000, 1000, 1020, 1000};
-const std::vector<int> STARTING_ASSETS = {200, 100, 66, 50};
+const std::vector<uint32_t> STARTING_CASH = {1000, 1000, 1020, 1000};
+const std::vector<uint32_t> STARTING_ASSETS = {200, 100, 66, 50};
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 uint8_t next_assignment = DRESSING;
 
@@ -132,7 +132,7 @@ auto run_asset_socket(Asset asset, Exchange& exchange) {
       return;
     }
 
-    if (user_data->user_id == -1) {
+    if (user_data->user_id == 0) {
       result.error = "error: Not registered on this exchange";
       ws->send(glz::write_json(result).value_or("Error encoding JSON."),
                op_code);
@@ -178,13 +178,13 @@ auto run_api(std::vector<Exchange>& exchanges) -> void {
   std::default_random_engine e1(42);
   std::uniform_int_distribution<int> id_generator(0, INT_MAX);
 
-  auto generate_user_id = [&e1, &id_generator]() -> int {
+  auto generate_user_id = [&e1, &id_generator]() -> uint32_t {
     return id_generator(e1);
   };
 
   std::unordered_map<std::string, std::string> passwords;
-  std::unordered_map<std::string, int> username_to_id;
-  std::unordered_set<int> user_ids;
+  std::unordered_map<std::string, uint32_t> username_to_id;
+  std::unordered_set<uint32_t> user_ids;
 
   auto handle_state_request = [&exchanges](uWS::HttpResponse<true>* res,
                                            uWS::HttpRequest* req) {
@@ -194,8 +194,8 @@ auto run_api(std::vector<Exchange>& exchanges) -> void {
       res->end(glz::write_json(state).value_or("Error encoding JSON."));
       return;
     }
-    int user_id = std::stoi(req->getHeader("user-id").data());
-    std::unordered_map<int, std::deque<Order>::iterator> order_iters;
+    uint32_t user_id = std::stoi(req->getHeader("user-id").data());
+    std::unordered_map<uint32_t, std::deque<Order>::iterator> order_iters;
     for (const auto& exchange : exchanges) {
       if (!exchange.user_assets.contains(user_id)) {
         state.error = "User with user_id: " + std::to_string(user_id) +
@@ -235,17 +235,17 @@ auto run_api(std::vector<Exchange>& exchanges) -> void {
           return;
         }
         passwords[username] = password;
-        int user_id = generate_user_id();
+        uint32_t user_id = generate_user_id();
         while (user_ids.contains(user_id)) {
           user_id = generate_user_id();
         }
         result.user_id = user_id;
         username_to_id[username] = user_id;
         for (auto& exchange : exchanges) {
-          int cash = STARTING_CASH[next_assignment];
-          int assets = next_assignment == exchange.asset
-                           ? STARTING_ASSETS[next_assignment]
-                           : 0;
+          uint32_t cash = STARTING_CASH[next_assignment];
+          uint32_t assets = next_assignment == exchange.asset
+                                ? STARTING_ASSETS[next_assignment]
+                                : 0;
           exchange.register_user(user_id, cash, assets);
         }
         next_assignment = (next_assignment + 1) % 4;
