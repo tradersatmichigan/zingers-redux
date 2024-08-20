@@ -18,9 +18,18 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from django.views.generic.base import TemplateView
+from django.contrib.auth.decorators import login_required
+
+from backend.views import get_user_info
 
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("accounts/", include("allauth.urls")),
     path("", TemplateView.as_view(template_name="index.html"), name="index"),
+    path(
+        "game/",
+        login_required(TemplateView.as_view(template_name="game.html")),
+        name="game",
+    ),
+    path("api/get_user_info/", get_user_info, name="get_user_id"),
 ]

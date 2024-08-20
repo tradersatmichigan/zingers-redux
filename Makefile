@@ -7,7 +7,7 @@ IFLAGS = -I/usr/local/include/uWebSockets -I/usr/local/include/uSockets \
 				 -isystem /usr/local/include/glaze
 LDFLAGS = uWebsockets/uSockets/*.o -lz
 
-SRC_DIR = backend
+SRC_DIR = src
 SRC_FILES = $(wildcard $(SRC_DIR)/*.cpp)
 EXECUTABLES = $(patsubst $(SRC_DIR)/%.cpp,%,$(SRC_FILES))
 

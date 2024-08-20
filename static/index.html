@@ -3,6 +3,7 @@
   {% load socialaccount %}
   {% if user.is_authenticated %}
     <p>Welcome {{ user.id }}!!!</p>
+    <a href="game/">Enter game</a>
   {% else %}
     <a href="{% provider_login_url 'google' %}">Sign Up with Google</a>
   {% endif %}

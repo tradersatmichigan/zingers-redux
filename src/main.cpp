@@ -211,7 +211,7 @@ auto run_api(const std::vector<Exchange>& exchanges) -> void {
   };
 
   uWS::SSLApp()
-      .get("/api/state", handle_state_request)
+      .get("/api/game/get_state", handle_state_request)
       .listen(3000,
               [](auto* listen_socket) {
                 if (listen_socket) {
