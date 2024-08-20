@@ -5,10 +5,10 @@
 #include <random>
 #include <string>
 #include <thread>
-
-#include <glaze/glaze.hpp>
 #include <unordered_map>
 #include <unordered_set>
+
+#include <glaze/glaze.hpp>
 #include "App.h"
 #include "WebSocketProtocol.h"
 
@@ -29,6 +29,7 @@ constexpr std::string_view DEFAULT_TOPIC = "default";
 
 struct UserData {
   uint32_t user_id{0};
+  bool registered{false};
 };
 
 struct IncomingMessage {
@@ -51,11 +52,6 @@ struct GameState {
   std::vector<uint32_t> selling_power;
 };
 
-struct LoginResult {
-  std::optional<std::string> error;
-  std::optional<uint32_t> user_id;
-};
-
 const std::vector<uint32_t> STARTING_CASH = {1000, 1000, 1020, 1000};
 const std::vector<uint32_t> STARTING_ASSETS = {200, 100, 66, 50};
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
@@ -71,10 +67,16 @@ auto handle_register_message(Exchange& exchange,
     ws->send(glz::write_json(result).value_or("Error encoding JSON."), op_code);
     return;
   }
+  if (ws->getUserData()->registered) {
+    result.error = "Already registered";
+    ws->send(glz::write_json(result).value_or("Error encoding JSON."), op_code);
+    return;
+  }
 
   exchange.register_user(message_data.user_id.value(), 1000, 100);
 
   ws->getUserData()->user_id = message_data.user_id.value();
+  ws->getUserData()->registered = true;
   ws->send("Registered with user id: " +
                std::to_string(message_data.user_id.value()) + ".",
            op_code);
@@ -86,14 +88,14 @@ auto handle_cancel_message(Exchange& exchange, uWS::SSLApp* app,
                            uWS::OpCode op_code) -> void {
   CancelResult result{};
   if (!message_data.order_id.has_value()) {
-    result.error = "error: Must include order_id when canceling an order.";
+    result.error = "Must include order_id when canceling an order.";
     ws->send(glz::write_json(result).value_or("Error encoding JSON."), op_code);
     return;
   }
   std::optional<std::string> error =
       exchange.cancel_order(message_data.order_id.value());
   if (error.has_value()) {
-    result.error = error;
+    result.error = error.value();
     ws->send(glz::write_json(result).value_or("Error encoding JSON."), op_code);
     return;
   }
@@ -132,8 +134,8 @@ auto run_asset_socket(Asset asset, Exchange& exchange) {
       return;
     }
 
-    if (user_data->user_id == 0) {
-      result.error = "error: Not registered on this exchange";
+    if (!user_data->registered) {
+      result.error = "Not registered on this exchange";
       ws->send(glz::write_json(result).value_or("Error encoding JSON."),
                op_code);
       return;
@@ -174,18 +176,7 @@ auto run_asset_socket(Asset asset, Exchange& exchange) {
   uWS::Loop::get()->free();
 }
 
-auto run_api(std::vector<Exchange>& exchanges) -> void {
-  std::default_random_engine e1(42);
-  std::uniform_int_distribution<int> id_generator(0, INT_MAX);
-
-  auto generate_user_id = [&e1, &id_generator]() -> uint32_t {
-    return id_generator(e1);
-  };
-
-  std::unordered_map<std::string, std::string> passwords;
-  std::unordered_map<std::string, uint32_t> username_to_id;
-  std::unordered_set<uint32_t> user_ids;
-
+auto run_api(const std::vector<Exchange>& exchanges) -> void {
   auto handle_state_request = [&exchanges](uWS::HttpResponse<true>* res,
                                            uWS::HttpRequest* req) {
     GameState state;
@@ -194,7 +185,8 @@ auto run_api(std::vector<Exchange>& exchanges) -> void {
       res->end(glz::write_json(state).value_or("Error encoding JSON."));
       return;
     }
-    uint32_t user_id = std::stoi(req->getHeader("user-id").data());
+    uint32_t user_id =
+        static_cast<uint32_t>(std::stoul(req->getHeader("user-id").data()));
     std::unordered_map<uint32_t, std::deque<Order>::iterator> order_iters;
     for (const auto& exchange : exchanges) {
       if (!exchange.user_assets.contains(user_id)) {
@@ -205,8 +197,8 @@ auto run_api(std::vector<Exchange>& exchanges) -> void {
         return;
       }
     }
-    state.cash = Exchange::user_cash[user_id].amount_held;
-    state.buying_power = Exchange::user_cash[user_id].buying_power;
+    state.cash = Exchange::user_cash.at(user_id).amount_held;
+    state.buying_power = Exchange::user_cash.at(user_id).buying_power;
     for (const auto& exchange : exchanges) {
       for (auto [order_id, order_iter] : exchange.all_orders) {
         state.orders.emplace(order_id, *order_iter);
@@ -218,49 +210,8 @@ auto run_api(std::vector<Exchange>& exchanges) -> void {
     res->end(glz::write_json(state).value_or("Error encoding JSON."));
   };
 
-  auto handle_login_request =
-      [&exchanges, &passwords, &user_ids, &username_to_id, &generate_user_id](
-          uWS::HttpResponse<true>* res, uWS::HttpRequest* req) {
-        LoginResult result;
-        std::string username = req->getHeader("username").data();
-        std::string password = req->getHeader("password").data();
-        if (passwords.contains(username)) {
-          if (passwords[username] == password) {
-            result.user_id = username_to_id[username];
-            res->end(glz::write_json(result).value_or("Error encoding JSON."));
-          } else {
-            result.error = "incorrect password";
-            res->end(glz::write_json(result).value_or("Error encoding JSON."));
-          }
-          return;
-        }
-        passwords[username] = password;
-        uint32_t user_id = generate_user_id();
-        while (user_ids.contains(user_id)) {
-          user_id = generate_user_id();
-        }
-        result.user_id = user_id;
-        username_to_id[username] = user_id;
-        for (auto& exchange : exchanges) {
-          uint32_t cash = STARTING_CASH[next_assignment];
-          uint32_t assets = next_assignment == exchange.asset
-                                ? STARTING_ASSETS[next_assignment]
-                                : 0;
-          exchange.register_user(user_id, cash, assets);
-        }
-        next_assignment = (next_assignment + 1) % 4;
-        res->end(glz::write_json(result).value_or("Error encoding JSON."));
-      };
-
   uWS::SSLApp()
       .get("/api/state", handle_state_request)
-      .post("/api/login", handle_login_request)
-      .get("/api/redirect",
-           [](uWS::HttpResponse<true>* res, uWS::HttpRequest* /*req*/) {
-             res->writeStatus("302");
-             res->writeHeader("location", "https://google.com");
-             res->end();
-           })
       .listen(3000,
               [](auto* listen_socket) {
                 if (listen_socket) {

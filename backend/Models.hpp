@@ -44,9 +44,9 @@ auto constexpr to_string_lower(Asset asset) -> std::string {
   }
 }
 
-enum Side : bool {
-  BUY = false,
-  SELL = true,
+enum Side : uint8_t {
+  BUY = 0,
+  SELL = 1,
 };
 
 struct Trade {
@@ -72,7 +72,7 @@ struct Order {
         user_id(user_id),
         price(price),
         volume(volume),
-        order_id(order_id) {};
+        order_id(order_id){};
 };
 
 struct OrderResult {

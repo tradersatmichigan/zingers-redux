@@ -61,8 +61,8 @@ struct Exchange {
         break;
     }
 
-    if (price <= 0) {
-      return "Price must be positive";
+    if (price <= 0 || price > 200) {
+      return "Price must be in range [1, 200] inclusive";
     }
 
     if (volume <= 0) {
