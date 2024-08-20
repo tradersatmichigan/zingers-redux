@@ -2,11 +2,9 @@
 #include <algorithm>
 #include <climits>
 #include <cstdint>
-#include <random>
 #include <string>
 #include <thread>
 #include <unordered_map>
-#include <unordered_set>
 
 #include <glaze/glaze.hpp>
 #include "App.h"
@@ -27,49 +25,24 @@ struct glz::meta<Order> {
 constexpr uint32_t NUM_ASSETS = 4;
 constexpr std::string_view DEFAULT_TOPIC = "default";
 
-struct UserData {
-  uint32_t user_id{0};
-  bool registered{false};
-};
-
-struct IncomingMessage {
-  std::optional<bool> reg;
-  std::optional<uint32_t> user_id;
-  std::optional<Asset> asset;
-  std::optional<Side> side;
-  std::optional<uint32_t> price;
-  std::optional<uint32_t> volume;
-  std::optional<bool> cancel;
-  std::optional<uint32_t> order_id;
-};
-
-struct GameState {
-  std::optional<std::string> error;
-  std::unordered_map<uint32_t, Order> orders;
-  uint32_t cash{0};
-  uint32_t buying_power{0};
-  std::vector<uint32_t> assets_held;
-  std::vector<uint32_t> selling_power;
-};
-
 const std::vector<uint32_t> STARTING_CASH = {1000, 1000, 1020, 1000};
 const std::vector<uint32_t> STARTING_ASSETS = {200, 100, 66, 50};
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 uint8_t next_assignment = DRESSING;
 
 auto handle_register_message(Exchange& exchange,
-                             uWS::WebSocket<true, true, UserData>* ws,
+                             uWS::WebSocket<true, true, SocketData>* ws,
                              const IncomingMessage& message_data,
                              uWS::OpCode op_code) -> void {
-  OrderResult result{};
-  if (!message_data.user_id.has_value()) {
-    result.error = "Must include user_id when registering.";
-    ws->send(glz::write_json(result).value_or("Error encoding JSON."), op_code);
+  if (ws->getUserData()->registered) {
     return;
   }
-  if (ws->getUserData()->registered) {
-    result.error = "Already registered";
-    ws->send(glz::write_json(result).value_or("Error encoding JSON."), op_code);
+  OutgoingMessage outgoing{};
+  if (!message_data.user_id.has_value()) {
+    outgoing.type = ERROR;
+    outgoing.error = "Must include user_id when registering.";
+    ws->send(glz::write_json(outgoing).value_or("Error encoding JSON."),
+             op_code);
     return;
   }
 
@@ -83,86 +56,115 @@ auto handle_register_message(Exchange& exchange,
 }
 
 auto handle_cancel_message(Exchange& exchange, uWS::SSLApp* app,
-                           uWS::WebSocket<true, true, UserData>* ws,
-                           const IncomingMessage& message_data,
+                           uWS::WebSocket<true, true, SocketData>* ws,
+                           const IncomingMessage& incoming,
                            uWS::OpCode op_code) -> void {
-  CancelResult result{};
-  if (!message_data.order_id.has_value()) {
-    result.error = "Must include order_id when canceling an order.";
-    ws->send(glz::write_json(result).value_or("Error encoding JSON."), op_code);
+  OutgoingMessage outgoing{};
+  if (!incoming.order_id.has_value()) {
+    outgoing.type = ERROR;
+    outgoing.error = "Must include order_id when canceling an order.";
+    ws->send(glz::write_json(outgoing).value_or("Error encoding JSON."),
+             op_code);
     return;
   }
   std::optional<std::string> error =
-      exchange.cancel_order(message_data.order_id.value());
+      exchange.cancel_order(incoming.order_id.value());
   if (error.has_value()) {
-    result.error = error.value();
-    ws->send(glz::write_json(result).value_or("Error encoding JSON."), op_code);
+    outgoing.type = ERROR;
+    outgoing.error = error.value();
+    ws->send(glz::write_json(outgoing).value_or("Error encoding JSON."),
+             op_code);
     return;
   }
-  result.order_id = message_data.order_id.value();
+  outgoing.type = CANCEL;
+  outgoing.order_id = incoming.order_id.value();
   app->publish(DEFAULT_TOPIC,
-               glz::write_json(result).value_or("Error encoding JSON."),
+               glz::write_json(outgoing).value_or("Error encoding JSON."),
+               op_code);
+}
+
+auto handle_order_message(Exchange& exchange, uWS::SSLApp* app,
+                          uWS::WebSocket<true, true, SocketData>* ws,
+                          const IncomingMessage& incoming,
+                          uWS::OpCode op_code) -> void {
+  OutgoingMessage outgoing{};
+  SocketData* user_data = ws->getUserData();
+  if (!user_data->registered) {
+    outgoing.type = ERROR;
+    outgoing.error =
+        "Not registered on exchange" + to_string_lower(exchange.asset);
+    ws->send(glz::write_json(outgoing).value_or("Error encoding JSON."),
+             op_code);
+    return;
+  }
+
+  OrderResult order_result =
+      exchange.place_order(incoming.side.value(), user_data->user_id,
+                           incoming.price.value(), incoming.volume.value());
+  outgoing.type = ORDER;
+  outgoing.trades = std::move(order_result.trades);
+  outgoing.unmatched_order = order_result.unmatched_order;
+
+  app->publish(DEFAULT_TOPIC,
+               glz::write_json(outgoing).value_or("Error encoding JSON."),
                op_code);
 }
 
 auto run_asset_socket(Asset asset, Exchange& exchange) {
   auto* app = new uWS::SSLApp();
 
-  auto on_open = [asset](uWS::WebSocket<true, true, UserData>* ws) {
+  auto on_open = [asset](uWS::WebSocket<true, true, SocketData>* ws) {
     ws->send("Connected to exchange asset " + to_string(asset),
              uWS::OpCode::TEXT);
     ws->subscribe(DEFAULT_TOPIC);
   };
 
-  auto on_message = [&app, &exchange](uWS::WebSocket<true, true, UserData>* ws,
-                                      std::string_view message,
-                                      uWS::OpCode op_code) {
-    IncomingMessage message_data{};
-    glz::error_ctx ec = glz::read_json(message_data, message);
+  auto on_message = [&app, &exchange](
+                        uWS::WebSocket<true, true, SocketData>* ws,
+                        std::string_view message, uWS::OpCode op_code) {
+    IncomingMessage incoming{};
+    glz::error_ctx ec = glz::read_json(incoming, message);
+
     if (ec) {
-      std::cout << glz::format_error(ec, message);
-      return;
-    }
-
-    UserData* user_data = ws->getUserData();
-
-    OrderResult result{};
-
-    if (message_data.reg.has_value() && message_data.reg.value()) {
-      handle_register_message(exchange, ws, message_data, op_code);
-      std::cout << exchange << std::endl;
-      return;
-    }
-
-    if (!user_data->registered) {
-      result.error = "Not registered on this exchange";
-      ws->send(glz::write_json(result).value_or("Error encoding JSON."),
+      OutgoingMessage outgoing{};
+      outgoing.type = ERROR;
+      outgoing.error = glz::format_error(ec, message);
+      ws->send(glz::write_json(outgoing).value_or("Error encoding JSON."),
                op_code);
       return;
     }
 
-    if (message_data.cancel.has_value() && message_data.cancel.value()) {
-      handle_cancel_message(exchange, app, ws, message_data, op_code);
-      std::cout << exchange << std::endl;
+    if (!incoming.type.has_value()) {
+      OutgoingMessage outgoing{};
+      outgoing.type = ERROR;
+      outgoing.error = "Message must have typed attached.";
+      ws->send(glz::write_json(outgoing).value_or("Error encoding JSON."),
+               op_code);
       return;
     }
 
-    result = exchange.place_order(message_data.side.value(), user_data->user_id,
-                                  message_data.price.value(),
-                                  message_data.volume.value());
-
-    app->publish(DEFAULT_TOPIC,
-                 glz::write_json(result).value_or("Error encoding JSON."),
-                 op_code);
+    switch (incoming.type.value()) {
+      case REGISTER:
+        handle_register_message(exchange, ws, incoming, op_code);
+        break;
+      case ORDER:
+        handle_order_message(exchange, app, ws, incoming, op_code);
+        break;
+      case CANCEL:
+        handle_cancel_message(exchange, app, ws, incoming, op_code);
+        break;
+      case ERROR:
+        break;
+    }
 
     std::cout << exchange << std::endl;
   };
 
-  app->ws<UserData>("/asset/" + to_string_lower(asset),
-                    {
-                        .open = on_open,
-                        .message = on_message,
-                    })
+  app->ws<SocketData>("/asset/" + to_string_lower(asset),
+                      {
+                          .open = on_open,
+                          .message = on_message,
+                      })
       .listen(9001 + asset, [asset](auto* listen_s) {
         if (listen_s) {
           std::cout << "Listening on port " << 9001 + asset << std::endl;

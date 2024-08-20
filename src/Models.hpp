@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <optional>
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -75,17 +76,6 @@ struct Order {
         order_id(order_id){};
 };
 
-struct OrderResult {
-  std::optional<std::string> error;
-  std::optional<std::vector<Trade>> trades;
-  std::optional<Order> unmatched_order;
-};
-
-struct CancelResult {
-  std::optional<std::string> error;
-  std::optional<uint32_t> order_id;
-};
-
 struct Cash {
   uint32_t amount_held;
   uint32_t buying_power;
@@ -94,6 +84,60 @@ struct Cash {
 struct AssetAmount {
   uint32_t amount_held;
   uint32_t selling_power;
+};
+
+struct OrderResult {
+  std::optional<std::string> error;
+  std::optional<std::vector<Trade>> trades;
+  std::optional<Order> unmatched_order;
+};
+
+// API/Websocket message types
+
+struct SocketData {
+  uint32_t user_id{0};
+  bool registered{false};
+};
+
+enum MessageType : uint8_t {
+  REGISTER = 0,
+  ORDER = 1,
+  CANCEL = 2,
+  ERROR = 3,
+};
+
+struct IncomingMessage {
+  std::optional<MessageType> type;
+  // register
+  std::optional<uint32_t> user_id;
+  // order
+  std::optional<Asset> asset;
+  std::optional<Side> side;
+  std::optional<uint32_t> price;
+  std::optional<uint32_t> volume;
+  // cancel
+  std::optional<uint32_t> order_id;
+};
+
+struct OutgoingMessage {
+  std::optional<MessageType> type;
+  std::optional<std::string> error;
+  // register
+  std::optional<uint32_t> user_id;
+  // order
+  std::optional<std::vector<Trade>> trades;
+  std::optional<Order> unmatched_order;
+  // cancel
+  std::optional<uint32_t> order_id;
+};
+
+struct GameState {
+  std::optional<std::string> error;
+  std::unordered_map<uint32_t, Order> orders;
+  uint32_t cash{0};
+  uint32_t buying_power{0};
+  std::vector<uint32_t> assets_held;
+  std::vector<uint32_t> selling_power;
 };
 
 #endif  // MODELS_HPP
