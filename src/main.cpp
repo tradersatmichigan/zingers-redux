@@ -98,6 +98,16 @@ auto handle_order_message(Exchange& exchange, uWS::SSLApp* app,
     return;
   }
 
+  if (!incoming.side.has_value() || !incoming.price.has_value() ||
+      !incoming.volume.has_value()) {
+    outgoing.type = ERROR;
+    outgoing.error =
+        "Must specify side, price, and volume when placing an order";
+    ws->send(glz::write_json(outgoing).value_or("Error encoding JSON."),
+             op_code);
+    return;
+  }
+
   OrderResult order_result =
       exchange.place_order(incoming.side.value(), user_data->user_id,
                            incoming.price.value(), incoming.volume.value());

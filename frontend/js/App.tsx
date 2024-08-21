@@ -4,7 +4,6 @@ import GameState from "./GameState";
 import AssetInterface from "./AssetInterface";
 import Asset from "./Asset";
 
-const UserInfoContext = createContext<UserInfo | undefined>(undefined);
 const GameStateContext = createContext<{
   gameState: GameState | undefined;
   setGameState:
@@ -64,23 +63,27 @@ const App = () => {
       .catch((error) => console.error(error));
   }, [userInfo, registered]);
 
-  const onregister = (asset: Asset) => {
+  const handle_register_message = (asset: Asset) => {
     setRegistered((registered) => ({ ...registered, [asset]: true }));
   };
 
   return (
     <GameStateContext.Provider value={{ gameState, setGameState }}>
-      <UserInfoContext.Provider value={userInfo}>
-        <p>userInfo: {JSON.stringify(userInfo)}</p>
-        {assets.map((asset: Asset) => {
-          return (
-            <AssetInterface key={asset} asset={asset} onregister={onregister} />
-          );
-        })}
-      </UserInfoContext.Provider>
+      <p>userInfo: {JSON.stringify(userInfo)}</p>
+      <p>gameState: {JSON.stringify(gameState)}</p>
+      {assets.map((asset: Asset) => {
+        return (
+          <AssetInterface
+            key={asset}
+            asset={asset}
+            userInfo={userInfo}
+            handle_register_message={handle_register_message}
+          />
+        );
+      })}
     </GameStateContext.Provider>
   );
 };
 
-export { UserInfoContext, GameStateContext };
+export { GameStateContext };
 export default App;
