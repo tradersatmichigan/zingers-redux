@@ -30,7 +30,7 @@ const App = () => {
   );
 
   useEffect(() => {
-    fetch("/api/get_user_info")
+    fetch("/api/get_user_info/")
       .then((response) => {
         if (!response.ok) throw Error(response.statusText);
         return response.json() as Promise<UserInfo>;

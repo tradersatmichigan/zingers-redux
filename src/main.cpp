@@ -170,6 +170,7 @@ auto run_asset_socket(Asset asset, Exchange& exchange) {
 
   app->ws<SocketData>("/asset/" + to_string_lower(asset),
                       {
+                          .idleTimeout = 30,
                           .open = on_open,
                           .message = on_message,
                       })

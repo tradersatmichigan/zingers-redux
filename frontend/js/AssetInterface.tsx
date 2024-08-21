@@ -159,51 +159,49 @@ const AssetInterface = ({
       return;
     }
 
-    const onopen = () => {
-      const outgoing = {
-        type: MessageType.REGISTER,
-        user_id: userInfo.user_id,
-      } as OutgoingMessage;
-      ws.current?.send(JSON.stringify(outgoing));
+    const connect = () => {
+      const wsUrl = `ws://${window.location.host}/asset/${Asset.toString(asset)}`;
+      const socket = new WebSocket(wsUrl);
+
+      socket.onopen = () => {
+        const outgoing = {
+          type: MessageType.REGISTER,
+          user_id: userInfo.user_id,
+        } as OutgoingMessage;
+        socket?.send(JSON.stringify(outgoing));
+      };
+      socket.onclose = () => {
+        console.info("WebSocket disconnected, reconnecting");
+        connect();
+      };
+      socket.onmessage = (event: MessageEvent) => {
+        const incoming = JSON.parse(event.data) as IncomingMessage;
+        console.log(`Message from ${Asset.toString(asset)} server:`, incoming);
+        switch (incoming.type as MessageType) {
+          case MessageType.REGISTER:
+            handle_register_message(asset);
+            break;
+          case MessageType.ORDER:
+            handle_order_message(incoming);
+            break;
+          case MessageType.CANCEL:
+            handle_cancel_message(incoming);
+            break;
+          case MessageType.ERROR:
+            console.error(incoming.error);
+            break;
+        }
+      };
+      ws.current = socket;
     };
 
-    const onclose = () => {
-      console.error("WebSocket disconnected");
-    };
-
-    const onmessage = (event: MessageEvent) => {
-      const incoming = JSON.parse(event.data) as IncomingMessage;
-      console.log(`Message from ${Asset.toString(asset)} server:`, incoming);
-      switch (incoming.type as MessageType) {
-        case MessageType.REGISTER:
-          handle_register_message(asset);
-          break;
-        case MessageType.ORDER:
-          handle_order_message(incoming);
-          break;
-        case MessageType.CANCEL:
-          handle_cancel_message(incoming);
-          break;
-        case MessageType.ERROR:
-          console.error(incoming.error);
-          break;
-      }
-    };
-
-    const wsUrl = `ws://${window.location.host}/asset/${Asset.toString(asset)}`;
-    ws.current = new WebSocket(wsUrl);
-
-    ws.current.onopen = onopen;
-    ws.current.onclose = onclose;
-    ws.current.onmessage = onmessage;
-
-    const socket = ws.current;
+    connect();
 
     return () => {
       console.log("Closing as part of useEffect callback.");
-      socket.close();
+      ws.current?.close();
     };
-  }, [userInfo]);
+  }, [userInfo === undefined]);
 
   const place_order = (side: Side, price: number, volume: number) => {
     if (!ws.current) {
