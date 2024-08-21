@@ -131,6 +131,7 @@ struct Exchange {
                                        iter->price, trade_volume,
                                        iter->order_id));
         if (iter->volume == 0) {
+          all_orders.erase(iter->order_id);
           level.erase(iter);
         }
       }
@@ -194,8 +195,8 @@ struct Exchange {
         break;
       }
       case SELL:
-        sell_orders[order_iter->price].erase(order_iter);
         user_assets[order_iter->user_id].selling_power += order_iter->volume;
+        sell_orders[order_iter->price].erase(order_iter);
         break;
     }
     all_orders.erase(order_id);

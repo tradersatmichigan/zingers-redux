@@ -13,7 +13,7 @@ const int_to_asset: Asset[] = [
 ];
 
 namespace Asset {
-  export function toString(asset: Asset): string {
+  export const toString = (asset: Asset) => {
     switch (asset) {
       case Asset.DRESSING:
         return "dressing";
@@ -24,7 +24,20 @@ namespace Asset {
       case Asset.PASTRAMI:
         return "pastrami";
     }
-  }
+  };
+
+  export const abreviate = (asset: Asset) => {
+    switch (asset) {
+      case Asset.DRESSING:
+        return "DRS";
+      case Asset.RYE:
+        return "RYE";
+      case Asset.SWISS:
+        return "SWS";
+      case Asset.PASTRAMI:
+        return "PAS";
+    }
+  };
 }
 
 export { int_to_asset };
