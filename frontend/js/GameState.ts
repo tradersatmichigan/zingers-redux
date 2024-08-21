@@ -1,6 +1,6 @@
 import Order from "./Order";
 
-interface StateResponse {
+interface GameState {
   error: string;
   orders: { [key: string]: Order };
   cash: number;
@@ -9,4 +9,4 @@ interface StateResponse {
   selling_power: number[];
 }
 
-export default StateResponse;
+export default GameState;

@@ -32,13 +32,13 @@ uint8_t next_assignment = DRESSING;
 
 auto handle_register_message(Exchange& exchange,
                              uWS::WebSocket<true, true, SocketData>* ws,
-                             const IncomingMessage& message_data,
+                             const IncomingMessage& incoming,
                              uWS::OpCode op_code) -> void {
   if (ws->getUserData()->registered) {
     return;
   }
   OutgoingMessage outgoing{};
-  if (!message_data.user_id.has_value()) {
+  if (!incoming.user_id.has_value()) {
     outgoing.type = ERROR;
     outgoing.error = "Must include user_id when registering.";
     ws->send(glz::write_json(outgoing).value_or("Error encoding JSON."),
@@ -46,13 +46,13 @@ auto handle_register_message(Exchange& exchange,
     return;
   }
 
-  exchange.register_user(message_data.user_id.value(), 1000, 100);
+  exchange.register_user(incoming.user_id.value(), 1000, 100);
 
-  ws->getUserData()->user_id = message_data.user_id.value();
+  ws->getUserData()->user_id = incoming.user_id.value();
   ws->getUserData()->registered = true;
-  ws->send("Registered with user id: " +
-               std::to_string(message_data.user_id.value()) + ".",
-           op_code);
+  outgoing.type = REGISTER;
+  outgoing.user_id = incoming.user_id.value();
+  ws->send(glz::write_json(outgoing).value_or("Error encoding JSON."), op_code);
 }
 
 auto handle_cancel_message(Exchange& exchange, uWS::SSLApp* app,
@@ -113,9 +113,7 @@ auto handle_order_message(Exchange& exchange, uWS::SSLApp* app,
 auto run_asset_socket(Asset asset, Exchange& exchange) {
   auto* app = new uWS::SSLApp();
 
-  auto on_open = [asset](uWS::WebSocket<true, true, SocketData>* ws) {
-    ws->send("Connected to exchange asset " + to_string(asset),
-             uWS::OpCode::TEXT);
+  auto on_open = [](uWS::WebSocket<true, true, SocketData>* ws) {
     ws->subscribe(DEFAULT_TOPIC);
   };
 

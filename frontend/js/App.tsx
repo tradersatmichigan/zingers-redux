@@ -1,68 +1,86 @@
-import React, { useEffect, useState } from "react";
-import LoginResponse from "./LoginResponse";
-import Order from "./Order";
-import StateResponse from "./State";
+import React, { createContext, useEffect, useState } from "react";
+import UserInfo from "./UserInfo";
+import GameState from "./GameState";
+import AssetInterface from "./AssetInterface";
+import Asset from "./Asset";
+
+const UserInfoContext = createContext<UserInfo | undefined>(undefined);
+const GameStateContext = createContext<{
+  gameState: GameState | undefined;
+  setGameState:
+    | React.Dispatch<React.SetStateAction<GameState | undefined>>
+    | undefined;
+}>({
+  gameState: undefined,
+  setGameState: undefined,
+});
+
+const assets = [Asset.DRESSING, Asset.RYE, Asset.SWISS, Asset.PASTRAMI];
 
 const App = () => {
-  const [userId, setUserId] = useState<number>(-1);
-  const [cash, setCash] = useState<number>(0);
-  const [buyingPower, setBuyingPower] = useState<number>(0);
-  const [orders, setOrders] = useState<{ [key: string]: Order }>({});
+  const [userInfo, setUserInfo] = useState<UserInfo>();
+  const [gameState, setGameState] = useState<GameState>();
+  const [registered, setRegistered] = useState(
+    assets.reduce(
+      (acc, asset) => {
+        acc[asset] = false;
+        return acc;
+      },
+      {} as Record<Asset, boolean>,
+    ),
+  );
 
   useEffect(() => {
-    fetch(`/api/login`, {
-      method: "POST",
-      credentials: "include",
-      headers: {
-        Username: "conner",
-        Password: "password",
-      },
-    })
+    fetch("/api/get_user_info")
       .then((response) => {
         if (!response.ok) throw Error(response.statusText);
-        return response.json() as Promise<LoginResponse>;
+        return response.json() as Promise<UserInfo>;
       })
-      .then((data: LoginResponse) => {
-        if (data.error) {
-          console.log(data.error);
-          return;
-        }
-        setUserId(data.user_id);
+      .then((data: UserInfo) => {
+        setUserInfo(data);
       })
       .catch((error) => console.error(error));
   }, []);
 
   useEffect(() => {
-    fetch(`/api/state`, {
-      credentials: "include",
+    if (!userInfo || !Object.values(registered).every((status) => status)) {
+      return;
+    }
+    fetch("/api/game/get_state", {
       headers: {
-        "User-Id": String(userId),
+        "User-Id": userInfo.user_id.toString(),
       },
     })
       .then((response) => {
         if (!response.ok) throw Error(response.statusText);
-        return response.json() as Promise<StateResponse>;
+        return response.json() as Promise<GameState>;
       })
-      .then((data: StateResponse) => {
+      .then((data: GameState) => {
         if (data.error) {
-          console.log(data.error);
-          return;
+          throw Error(data.error);
         }
-        setCash(data.cash);
-        setBuyingPower(data.buying_power);
-        setOrders(data.orders);
+        setGameState(data);
       })
       .catch((error) => console.error(error));
-  }, [userId]);
+  }, [userInfo, registered]);
+
+  const onregister = (asset: Asset) => {
+    setRegistered((registered) => ({ ...registered, [asset]: true }));
+  };
 
   return (
-    <div>
-      <p>cash: {cash}</p>
-      <p>buyingPower: {buyingPower}</p>
-      <p>orders: {JSON.stringify(orders)}</p>
-      <p>userId: {userId}</p>
-    </div>
+    <GameStateContext.Provider value={{ gameState, setGameState }}>
+      <UserInfoContext.Provider value={userInfo}>
+        <p>userInfo: {JSON.stringify(userInfo)}</p>
+        {assets.map((asset: Asset) => {
+          return (
+            <AssetInterface key={asset} asset={asset} onregister={onregister} />
+          );
+        })}
+      </UserInfoContext.Provider>
+    </GameStateContext.Provider>
   );
 };
 
+export { UserInfoContext, GameStateContext };
 export default App;

@@ -12,5 +12,20 @@ const int_to_asset: Asset[] = [
   Asset.PASTRAMI,
 ];
 
+namespace Asset {
+  export function toString(asset: Asset): string {
+    switch (asset) {
+      case Asset.DRESSING:
+        return "dressing";
+      case Asset.RYE:
+        return "rye";
+      case Asset.SWISS:
+        return "swiss";
+      case Asset.PASTRAMI:
+        return "pastrami";
+    }
+  }
+}
+
 export { int_to_asset };
 export default Asset;
