@@ -208,11 +208,12 @@ auto inline operator<<(std::ostream& os,
                        const Exchange& exchange) -> std::ostream& {
   os << to_string(exchange.asset) << " exchange" << std::endl;
   os << "  BUY orders: " << std::endl;
-  for (uint32_t price = 1; price <= 200; ++price) {
+  for (uint32_t price = 200; price >= 1; --price) {
     const auto& orders = exchange.buy_orders[price];
     if (orders.empty()) {
       continue;
     }
+    os << "    $" << price << std::endl;
     for (const Order& order : orders) {
       os << "      order_id: " << order.order_id
          << ", user_id: " << order.user_id << ", volume: " << order.volume
@@ -220,11 +221,12 @@ auto inline operator<<(std::ostream& os,
     }
   }
   os << "  SELL orders: " << std::endl;
-  for (uint32_t price = 200; price >= 1; --price) {
+  for (uint32_t price = 1; price <= 200; ++price) {
     const auto& orders = exchange.sell_orders[price];
     if (orders.empty()) {
       continue;
     }
+    os << "    $" << price << std::endl;
     for (const Order& order : orders) {
       os << "      order_id: " << order.order_id
          << ", user_id: " << order.user_id << ", volume: " << order.volume

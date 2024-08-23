@@ -3,32 +3,58 @@ import Side from "./Side";
 import { PlaceOrderContext } from "./AssetInterface";
 
 interface FormData {
+  side: Side;
   price: number;
   volume: number;
 }
 
-const OrderForm = ({ side }: { side: Side }) => {
+const OrderForm = () => {
   const place_order = useContext(PlaceOrderContext);
-  const [formData, setFormData] = useState<FormData>({ price: 0, volume: 0 });
+  const [formData, setFormData] = useState<FormData>({
+    side: Side.BUY,
+    price: 0,
+    volume: 0,
+  });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
+
     setFormData((prevData) => ({
       ...prevData,
-      [name]: parseInt(value, 10) || 0,
+      [name]:
+        name === "side"
+          ? (parseInt(value, 10) as Side)
+          : parseInt(value, 10) || 0,
     }));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (place_order) {
-      console.log("Form data submitted:", formData);
-      place_order(side, formData.price, formData.volume);
-    }
+    place_order && place_order(formData.side, formData.price, formData.volume);
   };
 
   return (
     <form onSubmit={handleSubmit}>
+      <label>
+        <input
+          type="radio"
+          name="side"
+          value={Side.BUY}
+          checked={formData.side === Side.BUY}
+          onChange={handleChange}
+        />
+        Buy
+      </label>
+      <label>
+        <input
+          type="radio"
+          name="side"
+          value={Side.SELL}
+          checked={formData.side === Side.SELL}
+          onChange={handleChange}
+        />
+        Sell
+      </label>
       <label htmlFor="price">Price:</label>
       <input
         type="number"

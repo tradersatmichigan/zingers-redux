@@ -3,24 +3,24 @@ import UserInfo from "./UserInfo";
 import GameState from "./GameState";
 import AssetInterface from "./AssetInterface";
 import Asset from "./Asset";
+import PositionInterface from "./PositionInterface";
+import Portfolio from "./Portfolio";
 
 const GameStateContext = createContext<{
   gameState: GameState | undefined;
   setGameState:
-    | React.Dispatch<React.SetStateAction<GameState | undefined>>
-    | undefined;
+  | React.Dispatch<React.SetStateAction<GameState | undefined>>
+  | undefined;
 }>({
   gameState: undefined,
   setGameState: undefined,
 });
 
-const assets = [Asset.DRESSING, Asset.RYE, Asset.SWISS, Asset.PASTRAMI];
-
 const App = () => {
   const [userInfo, setUserInfo] = useState<UserInfo>();
   const [gameState, setGameState] = useState<GameState>();
   const [registered, setRegistered] = useState(
-    assets.reduce(
+    Asset.assets.reduce(
       (acc, asset) => {
         acc[asset] = false;
         return acc;
@@ -71,7 +71,9 @@ const App = () => {
     <GameStateContext.Provider value={{ gameState, setGameState }}>
       <p>userInfo: {JSON.stringify(userInfo)}</p>
       <p>gameState: {JSON.stringify(gameState)}</p>
-      {assets.map((asset: Asset) => {
+      <PositionInterface userInfo={userInfo} />
+      <Portfolio />
+      {Asset.assets.map((asset: Asset) => {
         return (
           <AssetInterface
             key={asset}

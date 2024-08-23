@@ -5,13 +5,6 @@ enum Asset {
   PASTRAMI = 3,
 }
 
-const int_to_asset: Asset[] = [
-  Asset.DRESSING,
-  Asset.RYE,
-  Asset.SWISS,
-  Asset.PASTRAMI,
-];
-
 namespace Asset {
   export const toString = (asset: Asset) => {
     switch (asset) {
@@ -23,6 +16,19 @@ namespace Asset {
         return "swiss";
       case Asset.PASTRAMI:
         return "pastrami";
+    }
+  };
+
+  export const toStringProper = (asset: Asset) => {
+    switch (asset) {
+      case Asset.DRESSING:
+        return "Dressing";
+      case Asset.RYE:
+        return "Rye";
+      case Asset.SWISS:
+        return "Swiss";
+      case Asset.PASTRAMI:
+        return "Pastrami";
     }
   };
 
@@ -38,7 +44,28 @@ namespace Asset {
         return "PAS";
     }
   };
+
+  export const value = (asset: Asset) => {
+    switch (asset) {
+      case Asset.DRESSING:
+        return 10;
+      case Asset.RYE:
+        return 20;
+      case Asset.SWISS:
+        return 30;
+      case Asset.PASTRAMI:
+        return 40;
+    }
+  };
+
+  export const assets = [
+    Asset.DRESSING,
+    Asset.RYE,
+    Asset.SWISS,
+    Asset.PASTRAMI,
+  ];
+
+  export const rueben_bonus = 100;
 }
 
-export { int_to_asset };
 export default Asset;

@@ -9,9 +9,8 @@ const OrderBook = ({ asset }: { asset: Asset }) => {
     <>
       <p>{Asset.abreviate(asset)} orderbook</p>
       <OrderTable asset={asset} side={Side.BUY} />
-      <OrderForm side={Side.BUY} />
       <OrderTable asset={asset} side={Side.SELL} />
-      <OrderForm side={Side.SELL} />
+      <OrderForm />
     </>
   );
 };

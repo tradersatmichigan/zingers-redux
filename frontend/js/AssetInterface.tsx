@@ -83,7 +83,6 @@ const AssetInterface = ({
       if (incoming.trades) {
         settle_trades(updatedGameState, incoming.trades);
       }
-      console.log("after settling trades:", updatedGameState);
 
       if (incoming.unmatched_order) {
         const order = incoming.unmatched_order;
@@ -130,9 +129,9 @@ const AssetInterface = ({
         return prevGameState;
       }
 
-      const updatedGameState = { ...prevGameState };
-      updatedGameState.selling_power = [...prevGameState.selling_power];
-      updatedGameState.assets_held = [...prevGameState.assets_held];
+      const updatedGameState = JSON.parse(
+        JSON.stringify(prevGameState),
+      ) as GameState;
 
       if (order.user_id === userInfo?.user_id) {
         switch (order.side) {
@@ -176,7 +175,6 @@ const AssetInterface = ({
       };
       socket.onmessage = (event: MessageEvent) => {
         const incoming = JSON.parse(event.data) as IncomingMessage;
-        console.log(`Message from ${Asset.toString(asset)} server:`, incoming);
         switch (incoming.type as MessageType) {
           case MessageType.REGISTER:
             handle_register_message(asset);
@@ -198,7 +196,7 @@ const AssetInterface = ({
     connect();
 
     return () => {
-      console.log("Closing as part of useEffect callback.");
+      console.info("Closing as part of useEffect callback.");
       ws.current?.close();
     };
   }, [userInfo === undefined]);

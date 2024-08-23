@@ -4,7 +4,8 @@
   {% if user.is_authenticated %}
     <p>Welcome {{ user.id }}!!!</p>
     <a href="game/">Enter game</a>
+    <a href="accounts/logout/">Logout</a>
   {% else %}
-    <a href="{% provider_login_url 'google' %}">Sign Up with Google</a>
+    <a href="{% provider_login_url 'google' %}">Sign In with Google</a>
   {% endif %}
 </html>
