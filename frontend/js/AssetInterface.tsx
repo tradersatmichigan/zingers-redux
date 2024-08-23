@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useRef } from "react";
 import Asset from "./Asset";
 import { IncomingMessage, MessageType, OutgoingMessage } from "./Message.ts";
-import { GameStateContext } from "./App";
+import { ConnectionContext, GameStateContext } from "./App";
 import Side from "./Side.ts";
 import Trade from "./Trade.ts";
 import GameState from "./GameState.ts";
@@ -22,6 +22,7 @@ const AssetInterface = ({
   handle_register_message: (asset: Asset) => void;
 }) => {
   const { setGameState } = useContext(GameStateContext);
+  const { setConnections } = useContext(ConnectionContext);
 
   const settle_trades = (prevGameState: GameState, trades: Trade[]) => {
     for (const trade of trades) {
@@ -154,7 +155,7 @@ const AssetInterface = ({
   const ws = useRef<WebSocket | undefined>(undefined);
 
   useEffect(() => {
-    if (userInfo === undefined) {
+    if (userInfo === undefined || setConnections === undefined) {
       return;
     }
 
@@ -191,6 +192,12 @@ const AssetInterface = ({
         }
       };
       ws.current = socket;
+      setConnections((connections) => {
+        return {
+          ...connections,
+          [asset as number]: ws,
+        };
+      });
     };
 
     connect();
@@ -203,7 +210,7 @@ const AssetInterface = ({
 
   const place_order = (side: Side, price: number, volume: number) => {
     if (!ws.current) {
-      console.error("ws.current not set");
+      console.error("ws.current not set, no order placed");
       return;
     }
     const outgoing = {

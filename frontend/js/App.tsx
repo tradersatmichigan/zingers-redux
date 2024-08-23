@@ -16,6 +16,20 @@ const GameStateContext = createContext<{
   setGameState: undefined,
 });
 
+const ConnectionContext = createContext<{
+  connections: { [key: number]: React.MutableRefObject<WebSocket | undefined> };
+  setConnections:
+  | React.Dispatch<
+    React.SetStateAction<{
+      [key: number]: React.MutableRefObject<WebSocket | undefined>;
+    }>
+  >
+  | undefined;
+}>({
+  connections: {},
+  setConnections: undefined,
+});
+
 const App = () => {
   const [userInfo, setUserInfo] = useState<UserInfo>();
   const [gameState, setGameState] = useState<GameState>();
@@ -28,6 +42,10 @@ const App = () => {
       {} as Record<Asset, boolean>,
     ),
   );
+
+  const [connections, setConnections] = useState<{
+    [key: number]: React.MutableRefObject<WebSocket | undefined>;
+  }>({});
 
   useEffect(() => {
     fetch("/api/get_user_info/")
@@ -71,21 +89,23 @@ const App = () => {
     <GameStateContext.Provider value={{ gameState, setGameState }}>
       <p>userInfo: {JSON.stringify(userInfo)}</p>
       <p>gameState: {JSON.stringify(gameState)}</p>
-      <PositionInterface userInfo={userInfo} />
       <Portfolio />
-      {Asset.assets.map((asset: Asset) => {
-        return (
-          <AssetInterface
-            key={asset}
-            asset={asset}
-            userInfo={userInfo}
-            handle_register_message={handle_register_message}
-          />
-        );
-      })}
+      <ConnectionContext.Provider value={{ connections, setConnections }}>
+        <PositionInterface userInfo={userInfo} />
+        {Asset.assets.map((asset: Asset) => {
+          return (
+            <AssetInterface
+              key={asset}
+              asset={asset}
+              userInfo={userInfo}
+              handle_register_message={handle_register_message}
+            />
+          );
+        })}
+      </ConnectionContext.Provider>
     </GameStateContext.Provider>
   );
 };
 
-export { GameStateContext };
+export { GameStateContext, ConnectionContext };
 export default App;

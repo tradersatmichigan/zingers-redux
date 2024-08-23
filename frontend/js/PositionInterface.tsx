@@ -10,15 +10,18 @@ const PositionInterface = ({
   userInfo: UserInfo | undefined;
 }) => {
   const { gameState } = useContext(GameStateContext);
+
   if (!gameState) {
     return <p>No orders</p>;
   }
+
   const buy_orders = Object.values(gameState.orders).filter(
     (order) => order.side === Side.BUY && order.user_id === userInfo?.user_id,
   );
   const sell_orders = Object.values(gameState.orders).filter(
     (order) => order.side === Side.SELL && order.user_id === userInfo?.user_id,
   );
+
   return (
     <>
       <PositionTable side={Side.BUY} orders={buy_orders} />

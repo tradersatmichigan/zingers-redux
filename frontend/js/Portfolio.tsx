@@ -11,10 +11,10 @@ const Portfolio = () => {
 
   const portfolioValue =
     gameState.cash +
-    gameState.assets_held.reduce((acc, q, i) => {
-      console.log(i, q * Asset.value(i as Asset));
-      return acc + q * Asset.value(i as Asset);
-    }, 0) +
+    gameState.assets_held.reduce(
+      (acc, q, i) => acc + q * Asset.value(i as Asset),
+      0,
+    ) +
     Math.min(...gameState.assets_held) * Asset.rueben_bonus;
 
   return (
