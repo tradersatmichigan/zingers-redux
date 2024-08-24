@@ -45,6 +45,23 @@ auto constexpr to_string_lower(Asset asset) -> std::string {
   }
 }
 
+auto constexpr value(Asset asset) -> uint32_t {
+  switch (asset) {
+    case DRESSING:
+      return 10;
+    case RYE:
+      return 20;
+    case SWISS:
+      return 30;
+    case PASTRAMI:
+      return 40;
+    default:
+      std::unreachable();
+  }
+}
+
+constexpr uint32_t RUEBEN_VALUE = 100;
+
 enum Side : uint8_t {
   BUY = 0,
   SELL = 1,

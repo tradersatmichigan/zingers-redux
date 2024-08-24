@@ -187,9 +187,9 @@ auto run_asset_socket(Asset asset, Exchange& exchange) {
   uWS::Loop::get()->free();
 }
 
-auto run_api(const std::vector<Exchange>& exchanges) -> void {
-  auto handle_state_request = [&exchanges](uWS::HttpResponse<true>* res,
-                                           uWS::HttpRequest* req) {
+auto handle_state_request(const std::vector<Exchange>& exchanges) {
+  return [&exchanges](uWS::HttpResponse<true>* res,
+                      uWS::HttpRequest* req) -> void {
     GameState state;
     if (req->getHeader("user-id").empty()) {
       state.error = "user_id not set";
@@ -220,9 +220,52 @@ auto run_api(const std::vector<Exchange>& exchanges) -> void {
     }
     res->end(glz::write_json(state).value_or("Error encoding JSON."));
   };
+};
+
+auto handle_leaderboard_request(const std::vector<Exchange>& exchanges) {
+  return [&exchanges](uWS::HttpResponse<true>* res,
+                      uWS::HttpRequest* /*req*/) -> void {
+    auto get_portfolio_value = [&exchanges](uint32_t user_id) -> uint32_t {
+      if (!Exchange::user_cash.contains(user_id)) {
+        return 0;
+      }
+      uint32_t portfolio_value = Exchange::user_cash.at(user_id).amount_held;
+      std::optional<uint32_t> ruebens = {};
+      for (const auto& exchange : exchanges) {
+        if (exchange.user_assets.contains(user_id)) {
+          portfolio_value += exchange.user_assets.at(user_id).amount_held *
+                             value(exchange.asset);
+          if (ruebens.has_value()) {
+
+            ruebens = std::min(ruebens.value(),
+                               exchange.user_assets.at(user_id).amount_held);
+          } else {
+            ruebens = exchange.user_assets.at(user_id).amount_held;
+          }
+        }
+      }
+
+      if (ruebens.has_value()) {
+        portfolio_value += ruebens.value() * RUEBEN_VALUE;
+      }
+
+      return portfolio_value;
+    };
+
+    std::unordered_map<uint32_t, uint32_t> leaderboard;
+    leaderboard.reserve(Exchange::user_cash.size());
+    for (const auto [user_id, _] : Exchange::user_cash) {
+      leaderboard[user_id] = get_portfolio_value(user_id);
+    }
+    res->end(glz::write_json(leaderboard).value_or("Error encoding JSON."));
+  };
+}
+
+auto run_api(const std::vector<Exchange>& exchanges) -> void {
 
   uWS::SSLApp()
-      .get("/api/game/get_state", handle_state_request)
+      .get("/api/game/get_state", handle_state_request(exchanges))
+      .get("/api/game/get_leaderboard", handle_leaderboard_request(exchanges))
       .listen(3000,
               [](auto* listen_socket) {
                 if (listen_socket) {
