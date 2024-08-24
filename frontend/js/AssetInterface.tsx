@@ -167,6 +167,7 @@ const AssetInterface = ({
         const outgoing = {
           type: MessageType.REGISTER,
           user_id: userInfo.user_id,
+          username: userInfo.username,
         } as OutgoingMessage;
         socket?.send(JSON.stringify(outgoing));
       };

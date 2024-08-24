@@ -3,6 +3,7 @@
 #include <climits>
 #include <cstdint>
 #include <string>
+#include <string_view>
 #include <thread>
 #include <unordered_map>
 
@@ -30,28 +31,30 @@ const std::vector<uint32_t> STARTING_ASSETS = {200, 100, 66, 50};
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 uint8_t next_assignment = DRESSING;
 
-auto handle_register_message(Exchange& exchange,
-                             uWS::WebSocket<true, true, SocketData>* ws,
-                             const IncomingMessage& incoming,
-                             uWS::OpCode op_code) -> void {
+auto handle_register_message(
+    Exchange& exchange, std::unordered_map<uint32_t, std::string>& usernames,
+    uWS::WebSocket<true, true, SocketData>* ws, const IncomingMessage& incoming,
+    uWS::OpCode op_code) -> void {
   if (ws->getUserData()->registered) {
     return;
   }
   OutgoingMessage outgoing{};
-  if (!incoming.user_id.has_value()) {
+  if (!incoming.user_id.has_value() || !incoming.username.has_value()) {
     outgoing.type = ERROR;
-    outgoing.error = "Must include user_id when registering.";
+    outgoing.error = "Must include user_id and username when registering.";
     ws->send(glz::write_json(outgoing).value_or("Error encoding JSON."),
              op_code);
     return;
   }
 
   exchange.register_user(incoming.user_id.value(), 1000, 100);
+  usernames[incoming.user_id.value()] = incoming.username.value();
 
   ws->getUserData()->user_id = incoming.user_id.value();
   ws->getUserData()->registered = true;
   outgoing.type = REGISTER;
   outgoing.user_id = incoming.user_id.value();
+  outgoing.username = incoming.username.value();
   ws->send(glz::write_json(outgoing).value_or("Error encoding JSON."), op_code);
 }
 
@@ -120,14 +123,15 @@ auto handle_order_message(Exchange& exchange, uWS::SSLApp* app,
                op_code);
 }
 
-auto run_asset_socket(Asset asset, Exchange& exchange) {
+auto run_asset_socket(Asset asset, Exchange& exchange,
+                      std::unordered_map<uint32_t, std::string>& usernames) {
   auto* app = new uWS::SSLApp();
 
   auto on_open = [](uWS::WebSocket<true, true, SocketData>* ws) {
     ws->subscribe(DEFAULT_TOPIC);
   };
 
-  auto on_message = [&app, &exchange](
+  auto on_message = [&app, &exchange, &usernames](
                         uWS::WebSocket<true, true, SocketData>* ws,
                         std::string_view message, uWS::OpCode op_code) {
     IncomingMessage incoming{};
@@ -153,7 +157,7 @@ auto run_asset_socket(Asset asset, Exchange& exchange) {
 
     switch (incoming.type.value()) {
       case REGISTER:
-        handle_register_message(exchange, ws, incoming, op_code);
+        handle_register_message(exchange, usernames, ws, incoming, op_code);
         break;
       case ORDER:
         handle_order_message(exchange, app, ws, incoming, op_code);
@@ -222,9 +226,11 @@ auto handle_state_request(const std::vector<Exchange>& exchanges) {
   };
 };
 
-auto handle_leaderboard_request(const std::vector<Exchange>& exchanges) {
-  return [&exchanges](uWS::HttpResponse<true>* res,
-                      uWS::HttpRequest* /*req*/) -> void {
+auto handle_leaderboard_request(
+    const std::vector<Exchange>& exchanges,
+    const std::unordered_map<uint32_t, std::string>& usernames) {
+  return [&exchanges, &usernames](uWS::HttpResponse<true>* res,
+                                  uWS::HttpRequest* /*req*/) -> void {
     auto get_portfolio_value = [&exchanges](uint32_t user_id) -> uint32_t {
       if (!Exchange::user_cash.contains(user_id)) {
         return 0;
@@ -252,20 +258,26 @@ auto handle_leaderboard_request(const std::vector<Exchange>& exchanges) {
       return portfolio_value;
     };
 
-    std::unordered_map<uint32_t, uint32_t> leaderboard;
+    std::unordered_map<std::string, uint32_t> leaderboard;
     leaderboard.reserve(Exchange::user_cash.size());
     for (const auto [user_id, _] : Exchange::user_cash) {
-      leaderboard[user_id] = get_portfolio_value(user_id);
+      if (!usernames.contains(user_id)) {
+        std::cout << "user_id: " << user_id << " has no username";
+      }
+      leaderboard[usernames.at(user_id)] = get_portfolio_value(user_id);
     }
     res->end(glz::write_json(leaderboard).value_or("Error encoding JSON."));
   };
 }
 
-auto run_api(const std::vector<Exchange>& exchanges) -> void {
+auto run_api(const std::vector<Exchange>& exchanges,
+             const std::unordered_map<uint32_t, std::string>& usernames)
+    -> void {
 
   uWS::SSLApp()
       .get("/api/game/get_state", handle_state_request(exchanges))
-      .get("/api/game/get_leaderboard", handle_leaderboard_request(exchanges))
+      .get("/api/game/get_leaderboard",
+           handle_leaderboard_request(exchanges, usernames))
       .listen(3000,
               [](auto* listen_socket) {
                 if (listen_socket) {
@@ -283,14 +295,16 @@ auto main() -> int {
   }
 
   std::vector<std::thread*> threads(NUM_ASSETS);
+  std::unordered_map<uint32_t, std::string> usernames;
   for (uint8_t i = 0; i < NUM_ASSETS; ++i) {
     auto asset = static_cast<Asset>(i);
     auto& exchange = exchanges[i];
-    threads[i] = new std::thread(
-        [asset, &exchange]() { run_asset_socket(asset, exchange); });
+    threads[i] = new std::thread([asset, &exchange, &usernames]() {
+      run_asset_socket(asset, exchange, usernames);
+    });
   }
 
-  run_api(exchanges);
+  run_api(exchanges, usernames);
 
   std::for_each(threads.begin(), threads.end(),
                 [](std::thread* t) { t->join(); });

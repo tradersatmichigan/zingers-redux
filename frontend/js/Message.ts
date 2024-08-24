@@ -14,6 +14,7 @@ interface IncomingMessage {
   type: MessageType | undefined;
   error: string | undefined;
   user_id: number | undefined;
+  username: string | undefined;
   trades: Trade[] | undefined;
   unmatched_order: Order | undefined;
   order_id: number | undefined;
@@ -22,6 +23,7 @@ interface IncomingMessage {
 interface OutgoingMessage {
   type: MessageType | undefined;
   user_id: number | undefined;
+  username: string | undefined;
   asset: Asset | undefined;
   side: Side | undefined;
   price: number | undefined;

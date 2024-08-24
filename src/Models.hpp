@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -127,6 +128,7 @@ struct IncomingMessage {
   std::optional<MessageType> type;
   // register
   std::optional<uint32_t> user_id;
+  std::optional<std::string_view> username;
   // order
   std::optional<Asset> asset;
   std::optional<Side> side;
@@ -141,6 +143,7 @@ struct OutgoingMessage {
   std::optional<std::string> error;
   // register
   std::optional<uint32_t> user_id;
+  std::optional<std::string_view> username;
   // order
   std::optional<std::vector<Trade>> trades;
   std::optional<Order> unmatched_order;
