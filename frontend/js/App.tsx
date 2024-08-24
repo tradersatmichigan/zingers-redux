@@ -5,6 +5,7 @@ import AssetInterface from "./AssetInterface";
 import Asset from "./Asset";
 import PositionInterface from "./PositionInterface";
 import Portfolio from "./Portfolio";
+import Leaderboard from "./Leaderboard";
 
 const GameStateContext = createContext<{
   gameState: GameState | undefined;
@@ -87,6 +88,7 @@ const App = () => {
 
   return (
     <GameStateContext.Provider value={{ gameState, setGameState }}>
+      <Leaderboard />
       <p>userInfo: {JSON.stringify(userInfo)}</p>
       <p>gameState: {JSON.stringify(gameState)}</p>
       <Portfolio />
