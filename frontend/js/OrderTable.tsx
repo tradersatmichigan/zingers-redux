@@ -31,25 +31,25 @@ const OrderTable = ({ asset, side }: { asset: Asset; side: Side }) => {
   });
 
   return (
-    <>
-      <p>{side === Side.BUY ? "BIDS" : "ASKS"}</p>
-      <table>
-        <thead>
-          <tr>
-            <th>Price</th>
-            <th>Volume</th>
+    <table>
+      <thead>
+        <tr>
+          <th colSpan={2}>{side === Side.BUY ? "Bids" : "Asks"}</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Price</td>
+          <td>Volume</td>
+        </tr>
+        {orderEntries.map((order) => (
+          <tr key={order.price}>
+            <td>${order.price}</td>
+            <td>{order.volume}</td>
           </tr>
-        </thead>
-        <tbody>
-          {orderEntries.map((order) => (
-            <tr key={order.price}>
-              <td>{order.price}</td>
-              <td>{order.volume}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </>
+        ))}
+      </tbody>
+    </table>
   );
 };
 

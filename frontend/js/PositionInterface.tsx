@@ -12,7 +12,7 @@ const PositionInterface = ({
   const { gameState } = useContext(GameStateContext);
 
   if (!gameState) {
-    return <p>No orders</p>;
+    return <p>Loading...</p>;
   }
 
   const buy_orders = Object.values(gameState.orders).filter(
@@ -24,8 +24,20 @@ const PositionInterface = ({
 
   return (
     <>
-      <PositionTable side={Side.BUY} orders={buy_orders} />
-      <PositionTable side={Side.SELL} orders={sell_orders} />
+      <h3>Positions</h3>
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+        }}
+      >
+        <div style={{ width: "50%" }}>
+          <PositionTable side={Side.BUY} orders={buy_orders} />
+        </div>
+        <div style={{ width: "50%" }}>
+          <PositionTable side={Side.SELL} orders={sell_orders} />
+        </div>
+      </div>
     </>
   );
 };

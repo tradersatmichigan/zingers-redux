@@ -27,15 +27,15 @@ const Leaderboard = () => {
   }, []);
 
   return (
-    <div>
-      <h2>Leaderboard</h2>
+    <>
+      <h3>Leaderboard</h3>
       {leaderboard ? (
         <table>
           <thead>
             <tr>
-              <th>Rank</th>
-              <th>Username</th>
-              <th>Portfolio Value</th>
+              <th style={{ textAlign: "left" }}>Rank</th>
+              <th style={{ textAlign: "left" }}>Username</th>
+              <th style={{ textAlign: "right" }}>Portfolio Value</th>
             </tr>
           </thead>
           <tbody>
@@ -43,9 +43,9 @@ const Leaderboard = () => {
               .sort(([, lhs], [, rhs]) => rhs - lhs)
               .map(([username, value], index) => (
                 <tr key={username}>
-                  <td>{index + 1}</td>
-                  <td>{username}</td>
-                  <td>{value}</td>
+                  <td style={{ textAlign: "left" }}>{index + 1}</td>
+                  <td style={{ textAlign: "left" }}>{username}</td>
+                  <td style={{ textAlign: "right" }}>${value}</td>
                 </tr>
               ))}
           </tbody>
@@ -53,7 +53,7 @@ const Leaderboard = () => {
       ) : (
         <p>Loading...</p>
       )}
-    </div>
+    </>
   );
 };
 

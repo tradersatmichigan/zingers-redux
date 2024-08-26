@@ -32,7 +32,7 @@ namespace Asset {
     }
   };
 
-  export const abreviate = (asset: Asset) => {
+  export const abbreviate = (asset: Asset) => {
     switch (asset) {
       case Asset.DRESSING:
         return "DRS";

@@ -6,7 +6,6 @@ import Asset from "./Asset";
 import PositionInterface from "./PositionInterface";
 import Portfolio from "./Portfolio";
 import Leaderboard from "./Leaderboard";
-
 const GameStateContext = createContext<{
   gameState: GameState | undefined;
   setGameState:
@@ -88,22 +87,69 @@ const App = () => {
 
   return (
     <GameStateContext.Provider value={{ gameState, setGameState }}>
-      <Leaderboard />
-      <p>userInfo: {JSON.stringify(userInfo)}</p>
-      <p>gameState: {JSON.stringify(gameState)}</p>
-      <Portfolio />
       <ConnectionContext.Provider value={{ connections, setConnections }}>
-        <PositionInterface userInfo={userInfo} />
-        {Asset.assets.map((asset: Asset) => {
-          return (
-            <AssetInterface
-              key={asset}
-              asset={asset}
-              userInfo={userInfo}
-              handle_register_message={handle_register_message}
-            />
-          );
-        })}
+        <div
+          style={{
+            display: "flex",
+            height: "100vh",
+            width: "100vw",
+            margin: 0,
+            padding: 0,
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              width: "66.66%",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                height: "80%",
+              }}
+            >
+              {Asset.assets.map((asset: Asset) => {
+                return (
+                  <div
+                    key={asset}
+                    style={{
+                      width: "50%",
+                      height: "50%",
+                      overflowX: "hidden",
+                      overflowY: "auto",
+                    }}
+                  >
+                    <AssetInterface
+                      asset={asset}
+                      userInfo={userInfo}
+                      handle_register_message={handle_register_message}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{ height: "20%", overflowY: "auto" }}>
+              <Portfolio />
+            </div>
+          </div>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              width: "33.33%",
+            }}
+          >
+            <div style={{ height: "40%", overflowY: "auto" }}>
+              <PositionInterface userInfo={userInfo} />
+            </div>
+            <div style={{ height: "60%", overflowY: "auto" }}>
+              <Leaderboard />
+            </div>
+          </div>
+        </div>
       </ConnectionContext.Provider>
     </GameStateContext.Provider>
   );

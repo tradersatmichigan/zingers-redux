@@ -6,7 +6,7 @@ const Portfolio = () => {
   const { gameState } = useContext(GameStateContext);
 
   if (!gameState) {
-    return <p>Game state not loaded</p>;
+    return <p>Loading...</p>;
   }
 
   const portfolioValue =
@@ -19,7 +19,7 @@ const Portfolio = () => {
 
   return (
     <>
-      <p>Portfolio: ${portfolioValue}</p>
+      <h3>Portfolio: ${portfolioValue}</h3>
       <table>
         <thead>
           <tr>
@@ -70,6 +70,7 @@ const Portfolio = () => {
                 </td>
               );
             })}
+            <td></td>
           </tr>
         </tbody>
       </table>

@@ -188,7 +188,7 @@ const AssetInterface = ({
             handle_cancel_message(incoming);
             break;
           case MessageType.ERROR:
-            console.error(incoming.error);
+            alert(incoming.error);
             break;
         }
       };

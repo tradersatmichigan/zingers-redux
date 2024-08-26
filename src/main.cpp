@@ -114,6 +114,13 @@ auto handle_order_message(Exchange& exchange, uWS::SSLApp* app,
   OrderResult order_result =
       exchange.place_order(incoming.side.value(), user_data->user_id,
                            incoming.price.value(), incoming.volume.value());
+  if (order_result.error.has_value()) {
+    outgoing.type = ERROR;
+    outgoing.error = order_result.error.value();
+    ws->send(glz::write_json(outgoing).value_or("Error encoding JSON."),
+             op_code);
+    return;
+  }
   outgoing.type = ORDER;
   outgoing.trades = std::move(order_result.trades);
   outgoing.unmatched_order = order_result.unmatched_order;

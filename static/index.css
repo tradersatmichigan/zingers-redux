@@ -3,10 +3,171 @@
   src: url("CascadiaCode.ttf");
 }
 
+html,
 body {
+  overflow: hidden;
+  height: 100%;
+  margin: 0;
+  padding: 0;
   background-color: black;
   color: white;
   font-family:
-    /* Cascadia Code, */
+    Cascadia Code,
     sans-serif;
+}
+
+div {
+  margin: 0px;
+  padding: 0px;
+  /* box-shadow: inset 0 0 0 1px white; */
+}
+
+h3,
+h4 {
+  text-align: center;
+}
+
+h4 {
+  margin-top: 5px;
+  margin-bottom: 5px;
+}
+
+td,
+th {
+  text-align: center;
+}
+
+th {
+  position: sticky;
+}
+
+thead {
+  th {
+    border-bottom: 1px solid grey;
+    /* Adds border between rows */
+  }
+}
+
+tbody {
+  tr {
+    border-bottom: 1px solid grey;
+    /* Adds border between rows */
+  }
+
+  tr:last-child {
+    border-bottom: none;
+    /* Removes border from the last row */
+  }
+}
+
+table {
+  width: 90%;
+  margin: 0 auto;
+  border-collapse: separate;
+  border-radius: 5px;
+  border: 1px solid grey;
+  /* position: relative; */
+  /* table-layout: fixed; */
+}
+
+/* Apply a border to the right of all but the last column */
+table th:not(:last-child),
+table td:not(:last-child) {
+  border-right: 1px solid grey;
+}
+
+/* Apply a border to the bottom of all but the last row */
+table>thead>tr:not(:last-child)>th,
+table>thead>tr:not(:last-child)>td,
+table>tbody>tr:not(:last-child)>th,
+table>tbody>tr:not(:last-child)>td,
+table>tfoot>tr:not(:last-child)>th,
+table>tfoot>tr:not(:last-child)>td,
+table>tr:not(:last-child)>td,
+table>tr:not(:last-child)>th,
+table>thead:not(:last-child),
+table>tbody:not(:last-child),
+table>tfoot:not(:last-child) {
+  border-bottom: 1px solid grey;
+}
+
+/* GPT */
+
+.order-form {
+  padding: 20px;
+  padding-top: 0px;
+  border-radius: 5px;
+  color: #fff;
+}
+
+.radio-group {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 15px;
+}
+
+.radio-group label {
+  flex: 1;
+  text-align: center;
+  padding: 10px 0;
+  border-radius: 5px;
+  cursor: pointer;
+  border: 1px solid #444;
+  transition: background-color 0.3s ease;
+}
+
+.radio-group label.active {
+  background-color: #555;
+  border-color: #555;
+}
+
+.radio-group input {
+  display: none;
+}
+
+label {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 14px;
+}
+
+input[type="number"] {
+  width: 85%;
+  padding: 10px;
+  border: 1px solid #333;
+  border-radius: 5px;
+  background-color: #1c1c1c;
+  color: #fff;
+  margin-bottom: 15px;
+  font-family: Cascadia Code;
+}
+
+button.order {
+  width: 100%;
+  padding: 10px;
+  background-color: #2a3f54;
+  color: #82caff;
+  border: 1px solid #333;
+  border-radius: 5px;
+  font-family: Cascadia Code;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+button.order:hover {
+  background-color: #1c2b3c;
+}
+
+button.cancel {
+  background-color: #a91212;
+  color: #fff;
+  border: 1px solid #000;
+  border-radius: 5px;
+  cursor: pointer;
+  font-family: Cascadia Code;
+}
+
+button.cancel:hover {
+  background-color: #791313;
 }

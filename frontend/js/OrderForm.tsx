@@ -34,28 +34,30 @@ const OrderForm = () => {
   };
 
   return (
-    <form onSubmit={handleSubmit}>
-      <label>
-        <input
-          type="radio"
-          name="side"
-          value={Side.BUY}
-          checked={formData.side === Side.BUY}
-          onChange={handleChange}
-        />
-        Buy
-      </label>
-      <label>
-        <input
-          type="radio"
-          name="side"
-          value={Side.SELL}
-          checked={formData.side === Side.SELL}
-          onChange={handleChange}
-        />
-        Sell
-      </label>
-      <label htmlFor="price">Price:</label>
+    <form onSubmit={handleSubmit} className="order-form">
+      <div className="radio-group">
+        <label className={formData.side === Side.BUY ? "active" : ""}>
+          <input
+            type="radio"
+            name="side"
+            value={Side.BUY}
+            checked={formData.side === Side.BUY}
+            onChange={handleChange}
+          />
+          Bid
+        </label>
+        <label className={formData.side === Side.SELL ? "active" : ""}>
+          <input
+            type="radio"
+            name="side"
+            value={Side.SELL}
+            checked={formData.side === Side.SELL}
+            onChange={handleChange}
+          />
+          Ask
+        </label>
+      </div>
+      <label htmlFor="price">Price ($)</label>
       <input
         type="number"
         id="price"
@@ -65,7 +67,7 @@ const OrderForm = () => {
         min="1"
         max="200"
       />
-      <label htmlFor="volume">Volume:</label>
+      <label htmlFor="volume">Quantity</label>
       <input
         type="number"
         id="volume"
@@ -74,7 +76,9 @@ const OrderForm = () => {
         onChange={handleChange}
         min="1"
       />
-      <button type="submit">Submit</button>
+      <button type="submit" className="order">
+        Order
+      </button>
     </form>
   );
 };
