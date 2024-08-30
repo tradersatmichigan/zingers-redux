@@ -37,25 +37,31 @@ const PositionTable = ({ side, orders }: { side: Side; orders: Order[] }) => {
           <td>Price</td>
           <td>Volume</td>
         </tr>
-        {orders
-          .slice() // Create a shallow copy of the orders array
-          .sort((a, b) => b.order_id - a.order_id)
-          .map((order) => (
-            <tr key={order.order_id}>
-              <td>
-                <button
-                  type="button"
-                  onClick={cancel_order(order.asset, order.order_id)}
-                  className="cancel"
-                >
-                  &times;
-                </button>
-              </td>
-              <td>{Asset.abbreviate(order.asset)}</td>
-              <td>${order.price}</td>
-              <td>{order.volume}</td>
-            </tr>
-          ))}
+        {orders.length > 0 ? (
+          orders
+            .slice()
+            .sort((a, b) => b.order_id - a.order_id)
+            .map((order) => (
+              <tr key={order.order_id}>
+                <td>
+                  <button
+                    type="button"
+                    onClick={cancel_order(order.asset, order.order_id)}
+                    className="cancel"
+                  >
+                    &times;
+                  </button>
+                </td>
+                <td>{Asset.abbreviate(order.asset)}</td>
+                <td>${order.price}</td>
+                <td>{order.volume}</td>
+              </tr>
+            ))
+        ) : (
+          <tr>
+            <td colSpan={4}>No {side === Side.BUY ? "bids" : "asks"}</td>
+          </tr>
+        )}
       </tbody>
     </table>
   );

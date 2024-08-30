@@ -42,12 +42,18 @@ const OrderTable = ({ asset, side }: { asset: Asset; side: Side }) => {
           <td>Price</td>
           <td>Volume</td>
         </tr>
-        {orderEntries.map((order) => (
-          <tr key={order.price}>
-            <td>${order.price}</td>
-            <td>{order.volume}</td>
+        {orderEntries.length > 0 ? (
+          orderEntries.map((order) => (
+            <tr key={order.price}>
+              <td>${order.price}</td>
+              <td>{order.volume}</td>
+            </tr>
+          ))
+        ) : (
+          <tr>
+            <td colSpan={2}>No {side === Side.BUY ? "bids" : "asks"}</td>
           </tr>
-        ))}
+        )}
       </tbody>
     </table>
   );

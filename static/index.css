@@ -63,8 +63,8 @@ tbody {
 table {
   width: 90%;
   margin: 0 auto;
-  border-collapse: separate;
-  border-radius: 5px;
+  /* border-collapse: separate; */
+  /* border-radius: 5px; */
   border: 1px solid grey;
   /* position: relative; */
   /* table-layout: fixed; */
