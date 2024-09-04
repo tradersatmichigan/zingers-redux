@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
+import UserInfo from "./UserInfo";
 
 interface Leaderboard_t {
   [username: string]: number;
 }
 
-const Leaderboard = () => {
+const Leaderboard = ({ userInfo }: { userInfo: UserInfo | undefined }) => {
   const [leaderboard, setLeaderboard] = useState<Leaderboard_t | null>(null);
 
   const fetchLeaderboard = async () => {
@@ -42,7 +43,12 @@ const Leaderboard = () => {
             {Object.entries(leaderboard)
               .sort(([, lhs], [, rhs]) => rhs - lhs)
               .map(([username, value], index) => (
-                <tr key={username}>
+                <tr
+                  key={username}
+                  className={
+                    userInfo?.username === username ? "user-row" : undefined
+                  }
+                >
                   <td style={{ textAlign: "left" }}>{index + 1}</td>
                   <td style={{ textAlign: "left" }}>{username}</td>
                   <td style={{ textAlign: "right" }}>${value}</td>

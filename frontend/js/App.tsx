@@ -146,7 +146,7 @@ const App = () => {
               <PositionInterface userInfo={userInfo} />
             </div>
             <div style={{ height: "60%", overflowY: "auto" }}>
-              <Leaderboard />
+              <Leaderboard userInfo={userInfo} />
             </div>
           </div>
         </div>

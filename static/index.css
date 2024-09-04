@@ -70,6 +70,10 @@ table {
   /* table-layout: fixed; */
 }
 
+tr.user-row {
+  background-color: #2a3f54;
+}
+
 /* Apply a border to the right of all but the last column */
 table th:not(:last-child),
 table td:not(:last-child) {
@@ -77,17 +81,17 @@ table td:not(:last-child) {
 }
 
 /* Apply a border to the bottom of all but the last row */
-table>thead>tr:not(:last-child)>th,
-table>thead>tr:not(:last-child)>td,
-table>tbody>tr:not(:last-child)>th,
-table>tbody>tr:not(:last-child)>td,
-table>tfoot>tr:not(:last-child)>th,
-table>tfoot>tr:not(:last-child)>td,
-table>tr:not(:last-child)>td,
-table>tr:not(:last-child)>th,
-table>thead:not(:last-child),
-table>tbody:not(:last-child),
-table>tfoot:not(:last-child) {
+table > thead > tr:not(:last-child) > th,
+table > thead > tr:not(:last-child) > td,
+table > tbody > tr:not(:last-child) > th,
+table > tbody > tr:not(:last-child) > td,
+table > tfoot > tr:not(:last-child) > th,
+table > tfoot > tr:not(:last-child) > td,
+table > tr:not(:last-child) > td,
+table > tr:not(:last-child) > th,
+table > thead:not(:last-child),
+table > tbody:not(:last-child),
+table > tfoot:not(:last-child) {
   border-bottom: 1px solid grey;
 }
 

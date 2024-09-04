@@ -2,10 +2,10 @@ CXX = g++
 CXXFLAGS = -march=native -O3 -Wpedantic -Wall -Wextra -Wsign-conversion \
 					 -Wconversion -std=c++2b \
 					 -flto -fsanitize=address -g \
-					 -L/opt/homebrew/lib -lssl -lcrypto
+					 -L/opt/homebrew/lib
 IFLAGS = -I/usr/local/include/uWebSockets -I/usr/local/include/uSockets \
 				 -isystem /usr/local/include/glaze
-LDFLAGS = uWebsockets/uSockets/*.o -lz
+LDFLAGS = uWebSockets/uSockets/*.o -lz
 
 SRC_DIR = src
 SRC_FILES = $(wildcard $(SRC_DIR)/*.cpp)

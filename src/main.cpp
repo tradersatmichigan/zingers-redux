@@ -1,22 +1,24 @@
-#include <unistd.h>
 #include <algorithm>
+#include <atomic>
 #include <climits>
 #include <cstdint>
+#include <mutex>
 #include <string>
 #include <string_view>
 #include <thread>
+#include <unistd.h>
 #include <unordered_map>
 
-#include <glaze/glaze.hpp>
 #include "App.h"
 #include "WebSocketProtocol.h"
+#include <glaze/glaze.hpp>
 
 #include "Exchange.hpp"
 #include "Models.hpp"
 
-// See https://github.com/stephenberry/glaze?tab=readme-ov-file#explicit-metadata
-template <>
-struct glz::meta<Order> {
+// See
+// https://github.com/stephenberry/glaze?tab=readme-ov-file#explicit-metadata
+template <> struct glz::meta<Order> {
   using T = Order;
   // NOLINTNEXTLINE(readability-identifier-naming)
   static constexpr auto value = object(&T::asset, &T::side, &T::user_id,
@@ -29,11 +31,13 @@ constexpr std::string_view DEFAULT_TOPIC = "default";
 const std::vector<uint32_t> STARTING_CASH = {1000, 1000, 1020, 1000};
 const std::vector<uint32_t> STARTING_ASSETS = {200, 100, 66, 50};
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
-uint8_t next_assignment = DRESSING;
+std::atomic<uint8_t> next_assignment = DRESSING;
+std::mutex assignments_mutex;
+std::unordered_map<uint32_t, uint8_t> assignments;
 
 auto handle_register_message(
-    Exchange& exchange, std::unordered_map<uint32_t, std::string>& usernames,
-    uWS::WebSocket<true, true, SocketData>* ws, const IncomingMessage& incoming,
+    Exchange &exchange, std::unordered_map<uint32_t, std::string> &usernames,
+    uWS::WebSocket<true, true, SocketData> *ws, const IncomingMessage &incoming,
     uWS::OpCode op_code) -> void {
   if (ws->getUserData()->registered) {
     return;
@@ -47,7 +51,23 @@ auto handle_register_message(
     return;
   }
 
-  exchange.register_user(incoming.user_id.value(), 1000, 100);
+  {
+    std::scoped_lock lock(assignments_mutex);
+    if (!assignments.contains(incoming.user_id.value())) {
+      assignments[incoming.user_id.value()] = next_assignment;
+      next_assignment = (next_assignment + 1) % 4;
+    }
+  }
+
+  if (assignments[incoming.user_id.value()] == exchange.asset) {
+    exchange.register_user(incoming.user_id.value(),
+                           STARTING_CASH[exchange.asset],
+                           STARTING_ASSETS[exchange.asset]);
+  } else {
+    exchange.register_user(incoming.user_id.value(),
+                           STARTING_CASH[assignments[incoming.user_id.value()]],
+                           0);
+  }
   usernames[incoming.user_id.value()] = incoming.username.value();
 
   ws->getUserData()->user_id = incoming.user_id.value();
@@ -58,9 +78,9 @@ auto handle_register_message(
   ws->send(glz::write_json(outgoing).value_or("Error encoding JSON."), op_code);
 }
 
-auto handle_cancel_message(Exchange& exchange, uWS::SSLApp* app,
-                           uWS::WebSocket<true, true, SocketData>* ws,
-                           const IncomingMessage& incoming,
+auto handle_cancel_message(Exchange &exchange, uWS::SSLApp *app,
+                           uWS::WebSocket<true, true, SocketData> *ws,
+                           const IncomingMessage &incoming,
                            uWS::OpCode op_code) -> void {
   OutgoingMessage outgoing{};
   if (!incoming.order_id.has_value()) {
@@ -86,12 +106,12 @@ auto handle_cancel_message(Exchange& exchange, uWS::SSLApp* app,
                op_code);
 }
 
-auto handle_order_message(Exchange& exchange, uWS::SSLApp* app,
-                          uWS::WebSocket<true, true, SocketData>* ws,
-                          const IncomingMessage& incoming,
+auto handle_order_message(Exchange &exchange, uWS::SSLApp *app,
+                          uWS::WebSocket<true, true, SocketData> *ws,
+                          const IncomingMessage &incoming,
                           uWS::OpCode op_code) -> void {
   OutgoingMessage outgoing{};
-  SocketData* user_data = ws->getUserData();
+  SocketData *user_data = ws->getUserData();
   if (!user_data->registered) {
     outgoing.type = ERROR;
     outgoing.error =
@@ -130,16 +150,16 @@ auto handle_order_message(Exchange& exchange, uWS::SSLApp* app,
                op_code);
 }
 
-auto run_asset_socket(Asset asset, Exchange& exchange,
-                      std::unordered_map<uint32_t, std::string>& usernames) {
-  auto* app = new uWS::SSLApp();
+auto run_asset_socket(Asset asset, Exchange &exchange,
+                      std::unordered_map<uint32_t, std::string> &usernames) {
+  auto *app = new uWS::SSLApp();
 
-  auto on_open = [](uWS::WebSocket<true, true, SocketData>* ws) {
+  auto on_open = [](uWS::WebSocket<true, true, SocketData> *ws) {
     ws->subscribe(DEFAULT_TOPIC);
   };
 
   auto on_message = [&app, &exchange, &usernames](
-                        uWS::WebSocket<true, true, SocketData>* ws,
+                        uWS::WebSocket<true, true, SocketData> *ws,
                         std::string_view message, uWS::OpCode op_code) {
     IncomingMessage incoming{};
     glz::error_ctx ec = glz::read_json(incoming, message);
@@ -163,17 +183,17 @@ auto run_asset_socket(Asset asset, Exchange& exchange,
     }
 
     switch (incoming.type.value()) {
-      case REGISTER:
-        handle_register_message(exchange, usernames, ws, incoming, op_code);
-        break;
-      case ORDER:
-        handle_order_message(exchange, app, ws, incoming, op_code);
-        break;
-      case CANCEL:
-        handle_cancel_message(exchange, app, ws, incoming, op_code);
-        break;
-      case ERROR:
-        break;
+    case REGISTER:
+      handle_register_message(exchange, usernames, ws, incoming, op_code);
+      break;
+    case ORDER:
+      handle_order_message(exchange, app, ws, incoming, op_code);
+      break;
+    case CANCEL:
+      handle_cancel_message(exchange, app, ws, incoming, op_code);
+      break;
+    case ERROR:
+      break;
     }
 
     std::cout << exchange << std::endl;
@@ -185,7 +205,7 @@ auto run_asset_socket(Asset asset, Exchange& exchange,
                           .open = on_open,
                           .message = on_message,
                       })
-      .listen(9001 + asset, [asset](auto* listen_s) {
+      .listen(9001 + asset, [asset](auto *listen_s) {
         if (listen_s) {
           std::cout << "Listening on port " << 9001 + asset << std::endl;
         }
@@ -198,9 +218,9 @@ auto run_asset_socket(Asset asset, Exchange& exchange,
   uWS::Loop::get()->free();
 }
 
-auto handle_state_request(const std::vector<Exchange>& exchanges) {
-  return [&exchanges](uWS::HttpResponse<true>* res,
-                      uWS::HttpRequest* req) -> void {
+auto handle_state_request(const std::vector<Exchange> &exchanges) {
+  return [&exchanges](uWS::HttpResponse<true> *res,
+                      uWS::HttpRequest *req) -> void {
     GameState state;
     if (req->getHeader("user-id").empty()) {
       state.error = "user_id not set";
@@ -210,7 +230,7 @@ auto handle_state_request(const std::vector<Exchange>& exchanges) {
     uint32_t user_id =
         static_cast<uint32_t>(std::stoul(req->getHeader("user-id").data()));
     std::unordered_map<uint32_t, std::deque<Order>::iterator> order_iters;
-    for (const auto& exchange : exchanges) {
+    for (const auto &exchange : exchanges) {
       if (!exchange.user_assets.contains(user_id)) {
         state.error = "User with user_id: " + std::to_string(user_id) +
                       " not registered on exchange " +
@@ -221,7 +241,7 @@ auto handle_state_request(const std::vector<Exchange>& exchanges) {
     }
     state.cash = Exchange::user_cash.at(user_id).amount_held;
     state.buying_power = Exchange::user_cash.at(user_id).buying_power;
-    for (const auto& exchange : exchanges) {
+    for (const auto &exchange : exchanges) {
       for (auto [order_id, order_iter] : exchange.all_orders) {
         state.orders.emplace(order_id, *order_iter);
       }
@@ -234,17 +254,17 @@ auto handle_state_request(const std::vector<Exchange>& exchanges) {
 };
 
 auto handle_leaderboard_request(
-    const std::vector<Exchange>& exchanges,
-    const std::unordered_map<uint32_t, std::string>& usernames) {
-  return [&exchanges, &usernames](uWS::HttpResponse<true>* res,
-                                  uWS::HttpRequest* /*req*/) -> void {
+    const std::vector<Exchange> &exchanges,
+    const std::unordered_map<uint32_t, std::string> &usernames) {
+  return [&exchanges, &usernames](uWS::HttpResponse<true> *res,
+                                  uWS::HttpRequest * /*req*/) -> void {
     auto get_portfolio_value = [&exchanges](uint32_t user_id) -> uint32_t {
       if (!Exchange::user_cash.contains(user_id)) {
         return 0;
       }
       uint32_t portfolio_value = Exchange::user_cash.at(user_id).amount_held;
       std::optional<uint32_t> ruebens = {};
-      for (const auto& exchange : exchanges) {
+      for (const auto &exchange : exchanges) {
         if (exchange.user_assets.contains(user_id)) {
           portfolio_value += exchange.user_assets.at(user_id).amount_held *
                              value(exchange.asset);
@@ -277,8 +297,8 @@ auto handle_leaderboard_request(
   };
 }
 
-auto run_api(const std::vector<Exchange>& exchanges,
-             const std::unordered_map<uint32_t, std::string>& usernames)
+auto run_api(const std::vector<Exchange> &exchanges,
+             const std::unordered_map<uint32_t, std::string> &usernames)
     -> void {
 
   uWS::SSLApp()
@@ -286,7 +306,7 @@ auto run_api(const std::vector<Exchange>& exchanges,
       .get("/api/game/get_leaderboard",
            handle_leaderboard_request(exchanges, usernames))
       .listen(3000,
-              [](auto* listen_socket) {
+              [](auto *listen_socket) {
                 if (listen_socket) {
                   std::cout << "Listening on port " << 3000 << std::endl;
                 }
@@ -301,11 +321,11 @@ auto main() -> int {
     exchanges.emplace_back(static_cast<Asset>(i));
   }
 
-  std::vector<std::thread*> threads(NUM_ASSETS);
+  std::vector<std::thread *> threads(NUM_ASSETS);
   std::unordered_map<uint32_t, std::string> usernames;
   for (uint8_t i = 0; i < NUM_ASSETS; ++i) {
     auto asset = static_cast<Asset>(i);
-    auto& exchange = exchanges[i];
+    auto &exchange = exchanges[i];
     threads[i] = new std::thread([asset, &exchange, &usernames]() {
       run_asset_socket(asset, exchange, usernames);
     });
@@ -314,5 +334,5 @@ auto main() -> int {
   run_api(exchanges, usernames);
 
   std::for_each(threads.begin(), threads.end(),
-                [](std::thread* t) { t->join(); });
+                [](std::thread *t) { t->join(); });
 }

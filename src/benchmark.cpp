@@ -148,7 +148,7 @@ auto example(Exchange& exchange) -> void {
   std::cout << exchange;
 }
 
-constexpr size_t NUM_ASSETS = 4;
+constexpr size_t NUM_ASSETS = 1;
 
 auto main() -> int {
   std::vector<std::thread*> threads(NUM_ASSETS);
@@ -156,11 +156,10 @@ auto main() -> int {
   std::vector<uint32_t> user_ids = generate_user_ids(100);
 
   for (size_t i = 0; i < NUM_ASSETS; ++i) {
-    threads[i] = new std::thread([i, &user_ids]() {
+    threads[i] = new std::thread([i, user_ids]() {
       Exchange exchange(static_cast<Asset>(i % 4));
 
       benchmark(exchange, user_ids, 1'000'000);
-      // example(exchange);
     });
   }
 

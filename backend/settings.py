@@ -21,9 +21,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = (
-    "django-insecure-fbywo!ik0^(9p8#l=$t^5oib-g96mkh!t1)v&y+l@%4bb76l+r"
-)
+try:
+    SECRET_KEY = os.environ["SECRET_KEY"]
+except KeyError as e:
+    raise RuntimeError("Could not find a SECRET_KEY in environment") from e
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -31,9 +32,14 @@ DEBUG = True
 ALLOWED_HOSTS = [
     "localhost",
     "127.0.0.1",
-    os.popen("ipconfig getifaddr en0").read().strip(),
+    "3.139.177.27",
+    ".zingers.tradersatmichigan.com"
 ]
 
+CSRF_TRUSTED_ORIGINS = ["https://zingers.tradersatmichigan.com"]
+
+DEFAULT_HTTP_PROTOCOL = "https"
+ACCOUNT_DEFAULT_HTTP_PROTOCOL = "https"
 
 # Application definition
 
