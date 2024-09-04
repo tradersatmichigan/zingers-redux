@@ -271,9 +271,11 @@ auto handle_leaderboard_request(
           if (ruebens.has_value()) {
 
             ruebens = std::min(ruebens.value(),
-                               exchange.user_assets.at(user_id).amount_held);
+                               exchange.user_assets.at(user_id).amount_held /
+                                   (4 - static_cast<uint32_t>(exchange.asset)));
           } else {
-            ruebens = exchange.user_assets.at(user_id).amount_held;
+            ruebens = exchange.user_assets.at(user_id).amount_held /
+                      (4 - static_cast<uint32_t>(exchange.asset));
           }
         }
       }

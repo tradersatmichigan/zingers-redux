@@ -9,13 +9,18 @@ const Portfolio = () => {
     return <p>Loading...</p>;
   }
 
+  let ruebens = Math.floor(gameState.assets_held[0] / 4);
+  for (let i = 1; i < 4; ++i) {
+    ruebens = Math.min(ruebens, Math.floor(gameState.assets_held[i] / (4 - i)));
+  }
+
   const portfolioValue =
     gameState.cash +
     gameState.assets_held.reduce(
       (acc, q, i) => acc + q * Asset.value(i as Asset),
       0,
     ) +
-    Math.min(...gameState.assets_held) * Asset.rueben_bonus;
+    ruebens * Asset.rueben_bonus;
 
   return (
     <>
@@ -46,7 +51,7 @@ const Portfolio = () => {
                 </td>
               );
             })}
-            <td>{Math.min(...gameState.assets_held)}</td>
+            <td>{ruebens}</td>
           </tr>
           <tr>
             <td>Value</td>
@@ -58,7 +63,7 @@ const Portfolio = () => {
                 </td>
               );
             })}
-            <td>${Math.min(...gameState.assets_held) * Asset.rueben_bonus}</td>
+            <td>${ruebens * Asset.rueben_bonus}</td>
           </tr>
           <tr>
             <td>Buying/Selling Power</td>
