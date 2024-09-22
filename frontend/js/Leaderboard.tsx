@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
 import UserInfo from "./UserInfo";
 
-interface Leaderboard_t {
+type Leaderboard_t = {
   [username: string]: number;
-}
+};
 
 const Leaderboard = ({ userInfo }: { userInfo: UserInfo | undefined }) => {
   const [leaderboard, setLeaderboard] = useState<Leaderboard_t | null>(null);

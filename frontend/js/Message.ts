@@ -10,7 +10,7 @@ enum MessageType {
   ERROR = 3,
 }
 
-interface IncomingMessage {
+type IncomingMessage = {
   type: MessageType | undefined;
   error: string | undefined;
   user_id: number | undefined;
@@ -18,9 +18,9 @@ interface IncomingMessage {
   trades: Trade[] | undefined;
   unmatched_order: Order | undefined;
   order_id: number | undefined;
-}
+};
 
-interface OutgoingMessage {
+type OutgoingMessage = {
   type: MessageType | undefined;
   user_id: number | undefined;
   username: string | undefined;
@@ -29,6 +29,6 @@ interface OutgoingMessage {
   price: number | undefined;
   volume: number | undefined;
   order_id: number | undefined;
-}
+};
 
 export { MessageType, IncomingMessage, OutgoingMessage };

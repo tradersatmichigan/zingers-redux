@@ -2,11 +2,11 @@ import React, { useContext, useState } from "react";
 import Side from "./Side";
 import { PlaceOrderContext } from "./AssetInterface";
 
-interface FormData {
+type FormData = {
   side: Side;
   price: number;
   volume: number;
-}
+};
 
 const OrderForm = () => {
   const place_order = useContext(PlaceOrderContext);
