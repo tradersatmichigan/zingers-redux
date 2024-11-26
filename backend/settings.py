@@ -33,7 +33,7 @@ ALLOWED_HOSTS = [
     "localhost",
     "127.0.0.1",
     "3.139.177.27",
-    ".zingers.tradersatmichigan.com"
+    ".zingers.tradersatmichigan.com",
 ]
 
 CSRF_TRUSTED_ORIGINS = ["https://zingers.tradersatmichigan.com"]

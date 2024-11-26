@@ -74,8 +74,8 @@ struct Exchange {
 
   [[nodiscard]] auto execute_trade(Side taker_side, uint32_t maker_id,
                                    uint32_t taker_id, uint32_t price,
-                                   uint32_t volume,
-                                   uint32_t order_id) -> Trade {
+                                   uint32_t volume, uint32_t order_id)
+      -> Trade {
     std::scoped_lock lock(cash_mutex);
 
     uint32_t order_cost = price * volume;
@@ -204,8 +204,8 @@ struct Exchange {
   }
 };
 
-auto inline operator<<(std::ostream& os,
-                       const Exchange& exchange) -> std::ostream& {
+auto inline operator<<(std::ostream& os, const Exchange& exchange)
+    -> std::ostream& {
   os << to_string(exchange.asset) << " exchange" << std::endl;
   os << "  BUY orders: " << std::endl;
   for (uint32_t price = 200; price >= 1; --price) {

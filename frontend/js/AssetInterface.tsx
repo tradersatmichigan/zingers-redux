@@ -160,7 +160,7 @@ const AssetInterface = ({
     }
 
     const connect = () => {
-      const wsUrl = `wss://${window.location.host}/asset/${Asset.toString(asset)}`;
+      const wsUrl = `ws://${window.location.host}/asset/${Asset.toString(asset)}`;
       const socket = new WebSocket(wsUrl);
 
       socket.onopen = () => {

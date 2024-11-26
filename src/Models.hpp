@@ -91,7 +91,7 @@ struct Order {
         user_id(user_id),
         price(price),
         volume(volume),
-        order_id(order_id){};
+        order_id(order_id) {};
 };
 
 struct Cash {
