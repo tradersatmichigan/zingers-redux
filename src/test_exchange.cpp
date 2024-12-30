@@ -7,14 +7,14 @@ auto basic() -> void {
   user_t user1 = 1;
   user_t user2 = 2;
 
-  Exchange exchange(PASTRAMI);
+  Exchange exchange(DRESSING);
   exchange.register_user(user1);
   exchange.register_user(user2);
 
   price_t price1 = 10;
   volume_t volume1 = 5;
   Order order1 = {
-      .asset = PASTRAMI,
+      .asset = DRESSING,
       .side = BUY,
       .user_id = user1,
       .price = price1,
@@ -28,7 +28,7 @@ auto basic() -> void {
   assert(trades1.empty());
   assert(unmatched_order1.has_value());
   Order expected_order_1 = {
-      .asset = PASTRAMI,
+      .asset = DRESSING,
       .side = BUY,
       .user_id = user1,
       .price = price1,
@@ -47,7 +47,7 @@ auto basic() -> void {
   price_t price2 = 9;
   volume_t volume2 = 4;
   Order order2 = {
-      .asset = PASTRAMI,
+      .asset = DRESSING,
       .side = SELL,
       .user_id = user2,
       .price = price2,
@@ -65,7 +65,7 @@ auto basic() -> void {
   assert(trades2[0] == expected_trade2);
   assert(!unmatched_order2.has_value());
   Order expected_order_2 = {
-      .asset = PASTRAMI,
+      .asset = DRESSING,
       .side = BUY,
       .user_id = user1,
       .price = price1,
