@@ -1,12 +1,14 @@
 #pragma once
 
 #include <algorithm>
+#include <array>
 #include <deque>
 #include <functional>
 #include <iostream>
 #include <map>
 #include <mutex>
 #include <stdexcept>
+#include <string>
 #include <unordered_map>
 
 #include "Types.hpp"
@@ -19,18 +21,26 @@ constexpr volume_t MAX_VOLUME = 20000;
 static std::unordered_map<user_t, Balance> user_cash{};
 static std::mutex cash_mutex{};
 
-static constexpr price_t STARTING_CASH = 1000;
-static constexpr volume_t STARTING_ASSETS = 1000;
+static constexpr price_t STARTING_CASH = 100000;
+static constexpr volume_t STARTING_ASSETS = 100;
 
-using OrderMap =
-    std::map<price_t, std::deque<Order>, std::function<bool(price_t, price_t)>>;
+static std::array<price_t, NUM_ASSETS> asset_values = {
+    DRESSING_INIT_VALUE,
+    RYE_INIT_VALUE,
+    SWISS_INIT_VALUE,
+    PASTRAMI_INIT_VALUE,
+};
+
+static order_t num_orders{0};
+static std::mutex num_orders_mutex{};
 
 struct Exchange {
   Asset asset;
-  order_t num_orders{0};
 
-  OrderMap bids{std::less<int>{}};
-  OrderMap asks{std::greater<int>{}};
+  using OrderMap = std::map<price_t, std::deque<Order>,
+                            std::function<bool(price_t, price_t)>>;
+  OrderMap bids{std::greater<>{}};
+  OrderMap asks{std::less<>{}};
   std::unordered_map<user_t, Balance> user_assets;
   std::unordered_map<order_t, OrderInfo> order_info;
 
@@ -48,10 +58,14 @@ struct Exchange {
       throw std::runtime_error("Tried to place order on wrong exchange.");
     }
     if (order.price < MIN_PRICE || order.price > MAX_PRICE) {
-      throw std::runtime_error("Price must be in [1, 200] inclusive.");
+      throw std::runtime_error("Price must be in [" +
+                               std::to_string(MIN_PRICE) + ", " +
+                               std::to_string(MAX_PRICE) + "] inclusive.");
     }
     if (order.volume < MIN_VOLUME || order.volume > MAX_VOLUME) {
-      throw std::runtime_error("Volume must be in [1, 200] inclusive.");
+      throw std::runtime_error("Volume must be in [" +
+                               std::to_string(MIN_VOLUME) + ", " +
+                               std::to_string(MAX_VOLUME) + "] inclusive.");
     }
     if (order.side == BUY) {
       std::lock_guard lg(cash_mutex);
@@ -115,15 +129,14 @@ struct Exchange {
    */
   [[nodiscard]] auto place_order(Order order) -> OrderResult {
     validate_and_update(order);
-    order.id = num_orders++;
+    {
+      std::lock_guard lg(num_orders_mutex);
+      order.id = num_orders++;
+    }
     auto& opposing_orders = order.side == BUY ? asks : bids;
-    auto cond = [&order](const price_t& curr_price) -> bool {
-      return order.side == BUY ? curr_price <= order.price
-                               : curr_price >= order.price;
-    };
+    auto end_iter = opposing_orders.upper_bound(order.price);
     std::vector<Trade> trades;
-    for (auto iter = opposing_orders.begin();
-         iter != opposing_orders.end() && cond(iter->first);) {
+    for (auto iter = opposing_orders.begin(); iter != end_iter;) {
       auto curr_price = iter->first;
       auto& level = opposing_orders[curr_price];
       while (!level.empty() && order.volume > 0) {
@@ -177,6 +190,10 @@ struct Exchange {
         });
     if (iter->user_id != user_id) {
       throw std::runtime_error("user_id mismatch when cancelling order");
+    }
+    if (iter == orders.end()) {
+      throw std::runtime_error(
+          "Order not found in data structure, but found in order_info");
     }
     if (iter->side == BUY) {
       std::lock_guard lg(cash_mutex);

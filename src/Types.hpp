@@ -1,7 +1,9 @@
 #pragma once
 
+#include <array>
 #include <cstdint>
 #include <optional>
+#include <unordered_map>
 #include <vector>
 
 using user_t = uint32_t;
@@ -15,6 +17,13 @@ enum Asset : uint8_t {
   SWISS = 2,
   PASTRAMI = 3,
 };
+
+static constexpr uint8_t NUM_ASSETS = 4;
+
+static constexpr price_t DRESSING_INIT_VALUE = 1000;
+static constexpr price_t RYE_INIT_VALUE = 2000;
+static constexpr price_t SWISS_INIT_VALUE = 3000;
+static constexpr price_t PASTRAMI_INIT_VALUE = 4000;
 
 enum Side : uint8_t {
   BUY = 0,
@@ -107,3 +116,56 @@ auto inline operator<<(std::ostream& os, const Asset& asset) -> std::ostream& {
 auto inline operator<<(std::ostream& os, const Side& side) -> std::ostream& {
   return os << to_string(side);
 }
+
+// API/Websocket message types
+
+struct SocketData {
+  user_t user_id{0};
+  bool registered{false};
+};
+
+enum MessageType : uint8_t {
+  REGISTER = 0,
+  ORDER = 1,
+  CANCEL = 2,
+  UPDATE = 3,
+  ERROR = 4,
+};
+
+struct IncomingMessage {
+  std::optional<MessageType> type;
+  // REGISTER
+  std::optional<user_t> user_id;
+  std::optional<std::string_view> name;
+  // ORDER
+  std::optional<Asset> asset;
+  std::optional<Side> side;
+  std::optional<price_t> price;
+  std::optional<volume_t> volume;
+  // CANCEL
+  std::optional<order_t> order_id;
+};
+
+struct OutgoingMessage {
+  std::optional<MessageType> type;
+  // REGISTER
+  std::optional<user_t> user_id;
+  std::optional<std::string_view> username;
+  // ORDER
+  std::optional<std::vector<Trade>> trades;
+  std::optional<Order> unmatched_order;
+  // CANCEL
+  std::optional<order_t> order_id;
+  // UPDATE
+  std::array<price_t, NUM_ASSETS> asset_values;
+  // ERROR
+  std::optional<std::string> error;
+};
+
+struct GameState {
+  std::optional<std::string> error;
+  std::unordered_map<uint32_t, Order> orders;
+  Balance cash;
+  std::array<Balance, NUM_ASSETS> assets;
+  std::array<price_t, NUM_ASSETS> asset_values;
+};
