@@ -203,3 +203,4 @@ bun.lockb
 node_modules/
 *.csv
 .DJANGO_SECRET_KEY
+.SECRETS

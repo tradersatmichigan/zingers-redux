@@ -1,8 +1,11 @@
 #include <chrono>
 #include <cstdint>
 #include <iostream>
+#include <latch>
 #include <mutex>
+#include <numeric>
 #include <random>
+#include <semaphore>
 #include <thread>
 #include <unordered_set>
 #include <vector>
@@ -13,16 +16,21 @@
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 std::mutex output_mutex;
 
+std::vector<Exchange> exchanges;
+
 auto generate_user_ids(size_t num_users) -> std::vector<uint32_t> {
-  std::default_random_engine e1(42);
-  std::uniform_int_distribution<uint32_t> id_generator(1, 1'000'000);
-
-  std::unordered_set<uint32_t> set;
-  while (set.size() < num_users) {
-    set.insert(id_generator(e1));
-  }
-
-  return {set.begin(), set.end()};
+  std::vector<uint32_t> user_ids(num_users);
+  std::iota(user_ids.begin(), user_ids.end(), 0);
+  return user_ids;
+  // std::default_random_engine e1(42);
+  // std::uniform_int_distribution<uint32_t> id_generator(1, 1'000'000);
+  //
+  // std::unordered_set<uint32_t> set;
+  // while (set.size() < num_users) {
+  //   set.insert(id_generator(e1));
+  // }
+  //
+  // return {set.begin(), set.end()};
 }
 
 auto generate_orders(Asset asset, const std::vector<uint32_t>& user_ids,
@@ -30,8 +38,8 @@ auto generate_orders(Asset asset, const std::vector<uint32_t>& user_ids,
   std::default_random_engine e1(42);
   std::uniform_int_distribution<uint32_t> side_generator(0, 1);
   std::uniform_int_distribution<size_t> id_generator(0, user_ids.size() - 1);
-  std::uniform_int_distribution<uint32_t> price_generator(1, 50);
-  std::uniform_int_distribution<uint32_t> volume_generator(1, 50);
+  std::uniform_int_distribution<uint32_t> price_generator(1, 200);
+  std::uniform_int_distribution<uint32_t> volume_generator(1, 200);
 
   std::vector<Order> orders;
   orders.reserve(num_orders);
@@ -148,7 +156,9 @@ auto example(Exchange& exchange) -> void {
   std::cout << exchange;
 }
 
-constexpr size_t NUM_ASSETS = 1;
+constexpr size_t NUM_ASSETS = 4;
+std::latch latch{NUM_ASSETS};
+std::mutex mut;
 
 auto main() -> int {
   std::vector<std::thread*> threads(NUM_ASSETS);
@@ -157,14 +167,20 @@ auto main() -> int {
 
   for (size_t i = 0; i < NUM_ASSETS; ++i) {
     threads[i] = new std::thread([i, user_ids]() {
-      Exchange exchange(static_cast<Asset>(i % 4));
+      {
+        std::lock_guard lg(mut);
+        exchanges.emplace_back(static_cast<Asset>(i % 4));
+      }
+      latch.arrive_and_wait();
 
-      benchmark(exchange, user_ids, 1'000'000);
+      benchmark(exchanges[i], user_ids, 1'000'000);
     });
   }
 
   std::for_each(threads.begin(), threads.end(),
                 [](std::thread* t) { t->join(); });
+
+  Exchange::verify_state(exchanges);
 
   return 0;
 }

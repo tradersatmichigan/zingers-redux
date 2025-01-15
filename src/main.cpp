@@ -1,3 +1,4 @@
+#include <sys/types.h>
 #include <unistd.h>
 #include <algorithm>
 #include <atomic>
@@ -59,22 +60,15 @@ auto handle_register_message(
     }
   }
 
-  // if (assignments[incoming.user_id.value()] == exchange.asset) {
-  if (true) {
-    exchange.register_user(incoming.user_id.value(),
-                           STARTING_CASH[exchange.asset],
-                           STARTING_ASSETS[exchange.asset]);
-  } else {
-    exchange.register_user(incoming.user_id.value(),
-                           STARTING_CASH[assignments[incoming.user_id.value()]],
-                           0);
-  }
+  exchange.register_user(incoming.user_id.value(),
+                         STARTING_CASH[exchange.asset],
+                         STARTING_ASSETS[exchange.asset]);
   usernames[incoming.user_id.value()] = incoming.username.value();
 
   ws->getUserData()->user_id = incoming.user_id.value();
   ws->getUserData()->registered = true;
   outgoing.type = REGISTER;
-  outgoing.user_id = incoming.user_id.value();
+  outgoing.user_id = incoming.user_id;
   outgoing.username = incoming.username.value();
   ws->send(glz::write_json(outgoing).value_or("Error encoding JSON."), op_code);
 }
@@ -101,7 +95,7 @@ auto handle_cancel_message(Exchange& exchange, uWS::SSLApp* app,
     return;
   }
   outgoing.type = CANCEL;
-  outgoing.order_id = incoming.order_id.value();
+  outgoing.order_id = incoming.order_id;
   app->publish(DEFAULT_TOPIC,
                glz::write_json(outgoing).value_or("Error encoding JSON."),
                op_code);
@@ -197,7 +191,7 @@ auto run_asset_socket(Asset asset, Exchange& exchange,
         break;
     }
 
-    std::cout << exchange << std::endl;
+    std::cout << exchange << '\n';
   };
 
   app->ws<SocketData>("/asset/" + to_string_lower(asset),
@@ -208,7 +202,7 @@ auto run_asset_socket(Asset asset, Exchange& exchange,
                       })
       .listen(9001 + asset, [asset](auto* listen_s) {
         if (listen_s) {
-          std::cout << "Listening on port " << 9001 + asset << std::endl;
+          std::cout << "Listening on port " << 9001 + asset << '\n';
         }
       });
 
@@ -309,7 +303,7 @@ auto run_api(const std::vector<Exchange>& exchanges,
       .listen(3000,
               [](auto* listen_socket) {
                 if (listen_socket) {
-                  std::cout << "Listening on port " << 3000 << std::endl;
+                  std::cout << "Listening on port " << 3000 << '\n';
                 }
               })
       .run();
@@ -334,6 +328,5 @@ auto main() -> int {
 
   run_api(exchanges, usernames);
 
-  std::for_each(threads.begin(), threads.end(),
-                [](std::thread* t) { t->join(); });
+  std::ranges::for_each(threads, [](std::thread* t) { t->join(); });
 }

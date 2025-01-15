@@ -1,10 +1,11 @@
-#ifndef EXCHANGE_HPP
-#define EXCHANGE_HPP
+#pragma once
 
 #include <array>
 #include <atomic>
+#include <cassert>
 #include <cstdint>
-#include <deque>
+#include <iostream>
+#include <list>
 #include <mutex>
 #include <optional>
 #include <ostream>
@@ -22,11 +23,63 @@ struct Exchange {
   /* Per-exchange information */
   Asset asset;
   std::unordered_map<uint32_t, AssetAmount> user_assets;
-  std::array<std::deque<Order>, 201> buy_orders;
-  std::array<std::deque<Order>, 201> sell_orders;
-  std::unordered_map<uint32_t, std::deque<Order>::iterator> all_orders;
+  std::array<std::list<Order>, MAX_PRICE + 1> buy_orders;
+  std::array<std::list<Order>, MAX_PRICE + 1> sell_orders;
+  std::unordered_map<uint32_t, std::list<Order>::iterator> all_orders;
 
   Exchange(Asset asset) : asset(asset) {}
+
+  static auto verify_state(uint32_t user_id,
+                           const std::vector<Exchange>& exchanges) -> void {
+    std::lock_guard lg(cash_mutex);
+    uint32_t expected_buying_power = user_cash.at(user_id).amount_held;
+    for (const auto& exchange : exchanges) {
+      for (uint32_t price = MIN_PRICE; price <= MAX_PRICE; ++price) {
+        for (const auto& order : exchange.buy_orders[price]) {
+          assert(order.price == price);
+          if (order.user_id == user_id) {
+            expected_buying_power -= order.volume * order.price;
+          }
+        }
+      }
+    }
+    if (expected_buying_power != user_cash[user_id].buying_power) {
+      std::cout << "user_id: " << user_id << '\n';
+      std::cout << "Expected buying power: " << expected_buying_power << '\n';
+      std::cout << "Actual buying power: " << user_cash[user_id].buying_power
+                << '\n';
+    }
+    assert(expected_buying_power == user_cash[user_id].buying_power);
+    for (const auto& exchange : exchanges) {
+      uint32_t expected_selling_power =
+          exchange.user_assets.at(user_id).amount_held;
+      for (uint32_t price = MIN_PRICE; price <= MAX_PRICE; ++price) {
+        for (const auto& order : exchange.sell_orders[price]) {
+          assert(order.price == price);
+          if (order.user_id == user_id) {
+            expected_selling_power -= order.volume;
+          }
+        }
+      }
+      if (expected_selling_power !=
+          exchange.user_assets.at(user_id).selling_power) {
+        std::cout << "user_id: " << user_id << '\n';
+        std::cout << "Expected selling power: " << expected_selling_power
+                  << '\n';
+        std::cout << "Actual selling power: "
+                  << exchange.user_assets.at(user_id).selling_power << '\n';
+      }
+      assert(expected_selling_power ==
+             exchange.user_assets.at(user_id).selling_power);
+    }
+  }
+
+  static auto verify_state(const std::vector<Exchange>& exchanges) -> void {
+    for (auto [user_id, _] : user_cash) {
+      std::cout << user_id << '\n';
+      verify_state(user_id, exchanges);
+    }
+  }
 
   auto register_user(uint32_t user_id, uint32_t cash, uint32_t assets) -> void {
     std::scoped_lock lock(cash_mutex);
@@ -34,9 +87,9 @@ struct Exchange {
       return;
     }
     if (!user_cash.contains(user_id)) {
-      user_cash[user_id] = {cash, cash};
+      user_cash[user_id] = {.amount_held = cash, .buying_power = cash};
     }
-    user_assets[user_id] = {assets, assets};
+    user_assets[user_id] = {.amount_held = assets, .selling_power = assets};
   }
 
   [[nodiscard]] auto validate_order(Side side, uint32_t user_id, uint32_t price,
@@ -61,7 +114,7 @@ struct Exchange {
         break;
     }
 
-    if (price <= 0 || price > 200) {
+    if (price < MIN_PRICE || price > MAX_PRICE) {
       return "Price must be in range [1, 200] inclusive";
     }
 
@@ -103,8 +156,11 @@ struct Exchange {
         user_assets[taker_id].selling_power -= volume;
         break;
     }
-    return {taker_side == BUY ? taker_id : maker_id,
-            taker_side == BUY ? maker_id : taker_id, price, volume, order_id};
+    return {.buyer_id = taker_side == BUY ? taker_id : maker_id,
+            .seller_id = taker_side == BUY ? maker_id : taker_id,
+            .price = price,
+            .volume = volume,
+            .order_id = order_id};
   }
 
   [[nodiscard]] auto match_order(Side side, uint32_t user_id, uint32_t price,
@@ -118,7 +174,7 @@ struct Exchange {
       return side == BUY ? lhs >= rhs : lhs <= rhs;
     };
 
-    for (uint32_t curr_price = side == BUY ? 1 : 200;
+    for (uint32_t curr_price = side == BUY ? MIN_PRICE : MAX_PRICE;
          volume > 0 && cmp(price, curr_price);
          side == BUY ? ++curr_price : --curr_price) {
       auto& level = opposing_orders[curr_price];
@@ -149,14 +205,14 @@ struct Exchange {
     std::optional<std::string> error =
         validate_order(side, user_id, price, volume);
     if (error.has_value()) {
-      return {error.value(), {}, {}};
+      return {.error = error, .trades = {}, .unmatched_order = {}};
     }
 
     std::optional<std::vector<Trade>> trades =
         match_order(side, user_id, price, volume);
 
     if (volume == 0) {
-      return {{}, trades, {}};
+      return {.error = {}, .trades = trades, .unmatched_order = {}};
     }
 
     switch (side) {
@@ -176,8 +232,10 @@ struct Exchange {
         break;
     }
 
-    return {
-        {}, trades, Order{asset, side, user_id, price, volume, order_number++}};
+    return {.error = {},
+            .trades = trades,
+            .unmatched_order =
+                Order{asset, side, user_id, price, volume, order_number++}};
   }
 
   [[nodiscard]] auto cancel_order(uint32_t order_id)
@@ -206,34 +264,32 @@ struct Exchange {
 
 auto inline operator<<(std::ostream& os, const Exchange& exchange)
     -> std::ostream& {
-  os << to_string(exchange.asset) << " exchange" << std::endl;
-  os << "  BUY orders: " << std::endl;
-  for (uint32_t price = 200; price >= 1; --price) {
+  os << to_string(exchange.asset) << " exchange" << '\n';
+  os << "  BUY orders: " << '\n';
+  for (uint32_t price = MAX_PRICE; price >= MIN_PRICE; --price) {
     const auto& orders = exchange.buy_orders[price];
     if (orders.empty()) {
       continue;
     }
-    os << "    $" << price << std::endl;
+    os << "    $" << price << '\n';
     for (const Order& order : orders) {
       os << "      order_id: " << order.order_id
          << ", user_id: " << order.user_id << ", volume: " << order.volume
-         << std::endl;
+         << '\n';
     }
   }
-  os << "  SELL orders: " << std::endl;
-  for (uint32_t price = 1; price <= 200; ++price) {
+  os << "  SELL orders: " << '\n';
+  for (uint32_t price = MIN_PRICE; price <= MAX_PRICE; ++price) {
     const auto& orders = exchange.sell_orders[price];
     if (orders.empty()) {
       continue;
     }
-    os << "    $" << price << std::endl;
+    os << "    $" << price << '\n';
     for (const Order& order : orders) {
       os << "      order_id: " << order.order_id
          << ", user_id: " << order.user_id << ", volume: " << order.volume
-         << std::endl;
+         << '\n';
     }
   }
   return os;
 }
-
-#endif  // EXCHANGE_HPP

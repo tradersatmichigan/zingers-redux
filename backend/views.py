@@ -8,7 +8,7 @@ def get_user_info(request: HttpRequest) -> JsonResponse:
     return JsonResponse(
         {
             "user_id": request.user.id,
-            "username": request.user.username,
+            "username": request.user.get_full_name() or request.user.username,
         },
         status=200,
     )

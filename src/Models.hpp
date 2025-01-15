@@ -1,5 +1,4 @@
-#ifndef MODELS_HPP
-#define MODELS_HPP
+#pragma once
 
 #include <cstdint>
 #include <optional>
@@ -9,12 +8,19 @@
 #include <utility>
 #include <vector>
 
+static constexpr int MIN_PRICE = 1;
+static constexpr int MAX_PRICE = 200;
+static constexpr int MIN_VOLUME = 1;
+static constexpr int MAX_VOLUME = 200;
+
 enum Asset : uint8_t {
   DRESSING = 0,
   RYE = 1,
   SWISS = 2,
   PASTRAMI = 3,
 };
+
+static constexpr std::array<uint32_t, 4> ASSET_VALUES = {10, 20, 30, 40};
 
 auto constexpr to_string(Asset asset) -> std::string {
   switch (asset) {
@@ -47,18 +53,7 @@ auto constexpr to_string_lower(Asset asset) -> std::string {
 }
 
 auto constexpr value(Asset asset) -> uint32_t {
-  switch (asset) {
-    case DRESSING:
-      return 10;
-    case RYE:
-      return 20;
-    case SWISS:
-      return 30;
-    case PASTRAMI:
-      return 40;
-    default:
-      std::unreachable();
-  }
+  return ASSET_VALUES[static_cast<size_t>(asset)];
 }
 
 constexpr uint32_t RUEBEN_VALUE = 100;
@@ -159,5 +154,3 @@ struct GameState {
   std::vector<uint32_t> assets_held;
   std::vector<uint32_t> selling_power;
 };
-
-#endif  // MODELS_HPP
