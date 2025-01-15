@@ -116,7 +116,7 @@ const AssetInterface = ({
         return prevGameState;
       }
 
-      if (!incoming.order_id) {
+      if (incoming.order_id === undefined || incoming.order_id === null) {
         console.error(
           "Order id must be specified for cancellations:",
           incoming,
@@ -177,6 +177,7 @@ const AssetInterface = ({
       };
       socket.onmessage = (event: MessageEvent) => {
         const incoming = JSON.parse(event.data) as IncomingMessage;
+        console.log(incoming);
         switch (incoming.type as MessageType) {
           case MessageType.REGISTER:
             handle_register_message(asset);
