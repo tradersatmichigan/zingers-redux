@@ -33,7 +33,7 @@ auto generate_user_ids(size_t num_users) -> std::vector<uint32_t> {
   // return {set.begin(), set.end()};
 }
 
-auto generate_orders(Asset asset, const std::vector<uint32_t>& user_ids,
+auto generate_orders(Asset asset, const std::vector<uint32_t> &user_ids,
                      size_t num_orders) -> std::vector<Order> {
   std::default_random_engine e1(42);
   std::uniform_int_distribution<uint32_t> side_generator(0, 1);
@@ -55,7 +55,7 @@ auto generate_orders(Asset asset, const std::vector<uint32_t>& user_ids,
   return orders;
 }
 
-auto benchmark(Exchange& exchange, const std::vector<uint32_t>& user_ids,
+auto benchmark(Exchange &exchange, const std::vector<uint32_t> &user_ids,
                size_t num_orders) -> void {
   auto t_start = std::chrono::high_resolution_clock::now();
   for (uint32_t user_id : user_ids) {
@@ -92,7 +92,7 @@ auto benchmark(Exchange& exchange, const std::vector<uint32_t>& user_ids,
   }
 }
 
-auto benchmark_to_csv(Exchange& exchange, const std::vector<uint32_t>& user_ids,
+auto benchmark_to_csv(Exchange &exchange, const std::vector<uint32_t> &user_ids,
                       size_t num_orders) -> void {
   for (uint32_t user_id : user_ids) {
     exchange.register_user(user_id, 1'000'000, 100'000);
@@ -123,7 +123,7 @@ auto benchmark_to_csv(Exchange& exchange, const std::vector<uint32_t>& user_ids,
     }
     if (res.trades.has_value()) {
       std::scoped_lock lock(output_mutex);
-      for (const Trade& trade : res.trades.value()) {
+      for (const Trade &trade : res.trades.value()) {
         std::cout << ",,,,," << to_string(exchange.asset) << ","
                   << trade.buyer_id << "," << trade.seller_id << ","
                   << trade.price << "," << trade.volume << std::endl;
@@ -132,7 +132,7 @@ auto benchmark_to_csv(Exchange& exchange, const std::vector<uint32_t>& user_ids,
   }
 }
 
-auto example(Exchange& exchange) -> void {
+auto example(Exchange &exchange) -> void {
   exchange.register_user(0, 1000, 100);
   exchange.register_user(1, 1000, 100);
 
@@ -146,7 +146,7 @@ auto example(Exchange& exchange) -> void {
     std::cout << res.error.value() << std::endl;
   }
   if (res.trades.has_value()) {
-    for (const Trade& trade : res.trades.value()) {
+    for (const Trade &trade : res.trades.value()) {
       std::cout << "buyer_id: " << trade.buyer_id
                 << ", seller_id: " << trade.seller_id << ", price "
                 << trade.price << ", volume: " << trade.volume << std::endl;
@@ -161,7 +161,7 @@ std::latch latch{NUM_ASSETS};
 std::mutex mut;
 
 auto main() -> int {
-  std::vector<std::thread*> threads(NUM_ASSETS);
+  std::vector<std::thread *> threads(NUM_ASSETS);
 
   std::vector<uint32_t> user_ids = generate_user_ids(100);
 
@@ -177,8 +177,10 @@ auto main() -> int {
     });
   }
 
-  std::for_each(threads.begin(), threads.end(),
-                [](std::thread* t) { t->join(); });
+  std::for_each(threads.begin(), threads.end(), [](std::thread *t) {
+    t->join();
+    delete t;
+  });
 
   Exchange::verify_state(exchanges);
 

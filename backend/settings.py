@@ -32,11 +32,15 @@ DEBUG = True
 ALLOWED_HOSTS = [
     "localhost",
     "127.0.0.1",
-    "3.139.177.27",
+    "3.23.6.23",
     ".zingers.tradersatmichigan.com",
+    "www.zingers.tradersatmichigan.com",
 ]
 
-CSRF_TRUSTED_ORIGINS = ["https://zingers.tradersatmichigan.com"]
+CSRF_TRUSTED_ORIGINS = [
+    "https://zingers.tradersatmichigan.com",
+    "https://www.zingers.tradersatmichigan.com",
+]
 
 DEFAULT_HTTP_PROTOCOL = "https"
 ACCOUNT_DEFAULT_HTTP_PROTOCOL = "https"
